@@ -5,8 +5,25 @@
 // The package is CJS and exports a flat namespace of functions; we use
 // named imports for ergonomics. SoundQualityType is a const enum which
 // can't be imported under isolatedModules, so we pass the string and cast.
+//
+// NCM's free catalog is severely VIP-gated for mainstream Chinese pop;
+// passing a logged-in NCM_COOKIE via env unlocks anything the user's
+// account is entitled to (黑胶 / 会员).
 
+import 'dotenv/config'
 import api from 'NeteaseCloudMusicApi'
+
+const NCM_COOKIE = process.env.NCM_COOKIE?.trim() || undefined
+let warnedNoCookie = false
+function ensureCookieWarning() {
+  if (!NCM_COOKIE && !warnedNoCookie) {
+    warnedNoCookie = true
+    console.warn(
+      '[ncm] NCM_COOKIE not set — VIP-locked songs will return null. ' +
+        'See server/.env.example for setup.',
+    )
+  }
+}
 
 export type NcmSong = {
   id: number
@@ -38,7 +55,13 @@ type SongUrlV1Body = {
 }
 
 export async function searchSong(keywords: string, limit = 5): Promise<NcmSong[]> {
-  const res = await api.cloudsearch({ keywords, type: 1, limit })
+  ensureCookieWarning()
+  const res = await api.cloudsearch({
+    keywords,
+    type: 1,
+    limit,
+    ...(NCM_COOKIE && { cookie: NCM_COOKIE }),
+  })
   const body = res.body as CloudSearchBody
   const songs = body.result?.songs ?? []
   return songs.map((s) => ({
@@ -54,7 +77,12 @@ export async function getSongUrl(
   id: number,
   level: 'standard' | 'higher' | 'exhigh' | 'lossless' = 'standard',
 ): Promise<{ url: string; expiresAt?: number } | null> {
-  const res = await api.song_url_v1({ id, level: level as never })
+  ensureCookieWarning()
+  const res = await api.song_url_v1({
+    id,
+    level: level as never,
+    ...(NCM_COOKIE && { cookie: NCM_COOKIE }),
+  })
   const body = res.body as SongUrlV1Body
   const first = body.data?.[0]
   if (!first?.url) return null

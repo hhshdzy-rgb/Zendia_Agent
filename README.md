@@ -36,3 +36,15 @@ npm run dev
 ```
 
 如果 8910 撞了别的项目,服务端 `PORT=xxxx npm run dev`,前端 `ZENDIA_SERVER_PORT=xxxx npm run dev`,保持两边一致。
+
+## NCM cookie(解锁 VIP 曲目)
+
+NCM 免费目录大量主流华语流行 VIP 锁。如果你有黑胶 / 会员账号,登录后传 cookie 给后端解锁:
+
+1. `cp server/.env.example server/.env`
+2. 浏览器去 https://music.163.com/ 登录
+3. F12 → Application → Cookies → https://music.163.com → 找 `MUSIC_U`,复制值
+4. 编辑 `server/.env`:`NCM_COOKIE=MUSIC_U=<刚刚复制的值>`
+5. 重启后端 `npm run dev`,跑 `npm run ncm:smoke -- "十年 陈奕迅"` 应该能拿到 url 了
+
+`.env` 已经在 .gitignore,不会进 commit。**MUSIC_U 是你账号的 auth token,不要分享 / 截图 / 贴给别人。**

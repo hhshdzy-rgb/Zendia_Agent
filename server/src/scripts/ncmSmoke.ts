@@ -20,16 +20,27 @@ if (songs.length === 0) {
   process.exit(1)
 }
 
-const top = songs[0]!
-console.log(`\n[ncm] resolving URL for top hit: ${top.id} ${top.name}`)
-const t1 = Date.now()
-const url = await getSongUrl(top.id)
-console.log(`[ncm] resolved in ${Date.now() - t1}ms`)
-if (!url) {
-  console.error('[ncm] no URL returned (likely VIP-only or region-locked)')
-  console.error('[ncm] try a different query — that song may need a paid account')
+// Walk hits in order, return the first that resolves a real URL —
+// mirrors what resolvePlayQueue() does in the live loop.
+let url: { url: string; expiresAt?: number } | null = null
+let winner: (typeof songs)[number] | null = null
+for (const candidate of songs) {
+  const t1 = Date.now()
+  const probe = await getSongUrl(candidate.id)
+  console.log(
+    `[ncm]   try ${candidate.id} (${candidate.name}) -> ${probe ? 'OK' : 'no url'} (${Date.now() - t1}ms)`,
+  )
+  if (probe) {
+    url = probe
+    winner = candidate
+    break
+  }
+}
+if (!url || !winner) {
+  console.error('\n[ncm] none of the hits resolved a URL (likely all VIP / region-locked)')
   process.exit(2)
 }
+console.log(`\n[ncm] picked: ${winner.id} ${winner.name} — ${winner.artists.join(', ')}`)
 console.log(`[ncm] url: ${url.url}`)
 if (url.expiresAt) console.log(`[ncm] expires in: ${url.expiresAt}s`)
 

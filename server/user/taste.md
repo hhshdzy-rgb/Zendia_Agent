@@ -1,12 +1,23 @@
 # Taste
 
-Music I gravitate toward:
-- 70s soft rock (Bread, Carole King, James Taylor, America)
-- Bossa nova on rainy days
-- Late-night ambient electronic
-- Acoustic singer-songwriter — anything that sounds like one room, one mic
+主要听华语流行 / 民谣 / 经典港乐:
 
-Stay away from:
-- Aggressive EDM, hard rock, metal
-- Anything that obviously came from a public playlist algorithm
-- Christmas music outside of December
+- **陈奕迅**:声线辨识度高,夜晚最常听 —《十年》《好久不见》《K歌之王》
+- **周杰伦**:旋律好听的那批 —《晴天》《七里香》《稻香》
+- **五月天**:励志或抒情都行 —《知足》《突然好想你》《温柔》
+- **李宗盛**:中年男声叙事感 —《山丘》《漂洋过海来看你》
+- **罗大佑** / **王菲** / **张国荣**:经典老港台,情绪偏 melancholic
+- **林俊杰**:慢歌为主
+
+偶尔也听:
+
+- 雨天的 bossa nova 与轻爵士钢琴(久石让 / Bill Evans 风)
+- 工作时偏纯音乐 / instrumental(无人声)
+
+不太想听:
+- 强节奏 EDM / 摇滚 / 金属
+- 网易云首页推荐算法那种泛流行
+- 西方过于小众的 indie(歌单里大概率找不到)
+
+> 注:这是一个起点种子,模型会从这里学你的口味。
+> 听到合适的尽量保留,不喜欢的就直接编辑掉这个文件。
