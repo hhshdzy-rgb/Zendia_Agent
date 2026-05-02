@@ -47,6 +47,16 @@ export default function Player() {
     }
   }, [])
 
+  // When the server swaps to a new track (Claude → NCM resolved a fresh
+  // streamUrl), continue playback automatically — but only if the user
+  // has already pressed play once (audioCtxRef is set). Browsers block
+  // play() without prior user gesture, and we don't want to fight that.
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio || !audioCtxRef.current || !state.song.streamUrl) return
+    audio.play().catch((err) => console.warn('audio.play() after src swap rejected', err))
+  }, [state.song.streamUrl])
+
   const ensureAudioGraph = () => {
     const audio = audioRef.current
     if (!audio || audioCtxRef.current) return
