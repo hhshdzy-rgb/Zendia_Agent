@@ -5,7 +5,11 @@ import type { Message, ServerEvent, Song } from './types.js'
 // Single shared broadcaster. State is the union of the most recent
 // "snapshot-worthy" events (song, speaking, recent messages); when a new
 // client connects, we replay this snapshot before forwarding live events.
-// Messages are persisted in SQLite so a restart keeps the timeline intact.
+//
+// Messages are written to SQLite for archival, but the in-memory window
+// starts EMPTY on each server boot — radio metaphor: tune in, hear what's
+// happening now, not a recap of past sessions. The persisted db is still
+// there for a future "history" view to read directly.
 
 const HISTORY_LIMIT = 20
 
@@ -13,7 +17,7 @@ export class Hub {
   readonly sessionStartedAt = Date.now()
   private song: Song | null = null
   private speaking = false
-  private messages: Message[] = messagesRepo.recent(HISTORY_LIMIT)
+  private messages: Message[] = []
   private clients = new Set<WebSocket>()
 
   emit(event: ServerEvent): void {
