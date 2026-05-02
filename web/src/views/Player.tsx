@@ -184,7 +184,7 @@ export default function Player() {
         paused={paused}
         onTogglePlay={togglePlay}
       />
-      <MessageTimeline messages={state.messages} highlightOverride={ttsHighlight} />
+      <MessageTimeline messages={state.messages} playingOverride={ttsHighlight} />
       <BottomMiniPlayer
         positionSec={position}
         paused={paused}

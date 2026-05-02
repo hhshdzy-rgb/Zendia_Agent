@@ -4,17 +4,20 @@ import type { Message } from '../types'
 
 type Props = {
   messages: Message[]
-  // When TTS audio is driving sync locally, the parent passes the live
-  // {messageId, wordIdx} here and we prefer it over the server's
-  // m.highlightWord (which is stale / not emitted at all when audioUrl
-  // is present).
-  highlightOverride?: { id: string; wordIdx: number } | null
+  // Local-playback override: when a TTS audio file is in flight, this
+  // says "treat the matching message as still speaking visually + use
+  // this wordIdx for the highlight cursor", regardless of what the
+  // server has set m.status to. Keeps the bold/darker styling AND the
+  // green word cursor aligned with the actual audio, instead of fading
+  // to gray midway through the sentence.
+  playingOverride?: { id: string; wordIdx: number } | null
 }
 
-export default function MessageTimeline({ messages, highlightOverride }: Props) {
+export default function MessageTimeline({ messages, playingOverride }: Props) {
   const sentinelRef = useRef<HTMLDivElement>(null)
   const lastSpeakingIdRef = useRef<string | null>(null)
-  const speakingId = messages.find((m) => m.status === 'speaking')?.id ?? null
+  const speakingId =
+    playingOverride?.id ?? messages.find((m) => m.status === 'speaking')?.id ?? null
 
   // Scroll to bottom whenever the message list grows or a new utterance
   // starts speaking. Word advances within an active utterance don't trigger
@@ -30,14 +33,15 @@ export default function MessageTimeline({ messages, highlightOverride }: Props) 
   return (
     <div className="message-timeline">
       {messages.map((m) => {
-        const useOverride = highlightOverride && highlightOverride.id === m.id
-        const highlightIdx = useOverride
-          ? highlightOverride.wordIdx
+        const isOverride = playingOverride?.id === m.id
+        const visualStatus = isOverride ? 'speaking' : m.status
+        const highlightIdx = isOverride
+          ? playingOverride!.wordIdx
           : m.status === 'speaking'
             ? m.highlightWord
             : undefined
         return (
-          <article key={m.id} className={`message message-${m.status}`}>
+          <article key={m.id} className={`message message-${visualStatus}`}>
             <header className="message-meta">
               <span className="message-author">Zendia</span>
               <span className="message-dot">·</span>
