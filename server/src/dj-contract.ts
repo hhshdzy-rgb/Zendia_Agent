@@ -55,10 +55,10 @@ export function buildDjDirective(
     )
   }
 
-  lines.push('', 'Produce a substantial radio segment, ~30-60 seconds of speech (about 60-120 words). Build a small arc:')
-  lines.push('  1. Context: who wrote / recorded it, roughly when, what scene or genre.')
-  lines.push('  2. Feeling / theme: what the song is trying to say, or how it lands in this moment.')
-  lines.push('  3. Hand-off: a clean exit into the music ("接下来请欣赏…" or equivalent).')
+  lines.push('', 'Produce a tight radio segment that fits inside a song\'s intro: ~10-15 seconds of speech, **30-50 words, 2-3 sentences**. Compact structure:')
+  lines.push('  1. Context: who, when, what scene (one short clause).')
+  lines.push('  2. Feeling / theme: what the song carries.')
+  lines.push('  3. Hand-off: clean exit ("接下来请欣赏…" or equivalent).')
   lines.push('')
   if (mode === 'intro') {
     lines.push('Intro mode: queue a NEW song in play[] and use steps 1-2-3 to introduce it.')
@@ -75,10 +75,10 @@ export function buildDjDirective(
     'Reply with ONLY a single JSON object. Start with { and end with }.',
     'No prose, no quotes around the whole reply, no markdown fences.',
     '',
-    'Required keys: say (string, 60-120 words), play (string[]), reason (string), segue (string, "" if none).',
+    'Required keys: say (string, 30-50 words, 2-3 sentences), play (string[]), reason (string), segue (string, "" if none).',
     '',
-    'Example of a valid full reply:',
-    '{"say":"接下来这首是周杰伦的《晴天》,2003年发行,收在《叶惠美》这张专辑里。这是他自己作词作曲的钢琴民谣,讲的是青春期那种朦胧又笨拙的暗恋——你想说一句喜欢,可还是绕了一整个夏天。听这首歌的时候,你会想起某个具体的午后,阳光是斜的,身边那个人正在笑。接下来请欣赏。","play":["晴天 周杰伦"],"reason":"傍晚柔光,适合一首怀旧又柔软的钢琴民谣开场","segue":""}',
+    'Example of a valid full reply (note the brevity):',
+    '{"say":"接下来是周杰伦的《晴天》,2003年的钢琴民谣,讲青春期那种说不出口的暗恋。一段斜阳午后的回忆。请欣赏。","play":["晴天 周杰伦"],"reason":"傍晚柔光,怀旧钢琴民谣","segue":""}',
   )
   return lines.join('\n')
 }

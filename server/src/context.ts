@@ -91,16 +91,32 @@ function formatEnvironment(env: Environment | undefined): string {
   return lines.join('\n')
 }
 
+// Per-message char cap. The recent timeline is for anti-repetition + tone
+// reference, not full recall, so we don't need the whole text. This also
+// keeps the assembled systemPrompt under Windows' ~8KB CLI arg limit
+// when long-form DJ segments accumulate.
+const MAX_MEM_CHARS_PER_MSG = 200
+
 function formatRecentMessages(messages: Message[]): string {
   if (messages.length === 0) return '_(none)_'
-  return messages.map((m) => `- [${m.status}] "${m.text}"`).join('\n')
+  return messages
+    .map((m) => {
+      const t =
+        m.text.length > MAX_MEM_CHARS_PER_MSG
+          ? `${m.text.slice(0, MAX_MEM_CHARS_PER_MSG)}…`
+          : m.text
+      return `- [${m.status}] "${t}"`
+    })
+    .join('\n')
 }
 
 export function buildContext(input: ContextInput = {}): AssembledContext {
   const persona = readIfExists(PERSONA_PATH)
   const userCorpus = readUserCorpus()
   const environment = formatEnvironment(input.environment)
-  const recent = messagesRepo.recent(input.historyLimit ?? 10)
+  // 5 is enough to anchor "don't repeat the last few" without bloating
+  // the prompt. Caller can override via historyLimit.
+  const recent = messagesRepo.recent(input.historyLimit ?? 5)
   const retrievedMemory = formatRecentMessages(recent)
   const userInput = input.userInput?.trim() ?? ''
   const trace = input.trace?.trim() ?? ''

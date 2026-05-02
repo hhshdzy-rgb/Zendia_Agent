@@ -244,13 +244,23 @@
 
 .message-body {
   margin: 0;
-  font-size: 17px;
+  font-size: 15px;
   line-height: 1.45;
   color: #1c1c1c;
-  transition: color 600ms ease, font-weight 600ms ease;
+  transform-origin: left top;
+  transition:
+    font-size 600ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    color 600ms ease,
+    font-weight 600ms ease,
+    line-height 600ms ease;
 }
 
-.message-speaking .message-body { color: #08060d; font-weight: 500; }
+.message-speaking .message-body {
+  color: #08060d;
+  font-weight: 500;
+  font-size: 22px;
+  line-height: 1.4;
+}
 .message-done .message-body { color: rgba(8, 6, 13, 0.32); }
 .message-pending .message-body { color: rgba(8, 6, 13, 0.55); }
 
