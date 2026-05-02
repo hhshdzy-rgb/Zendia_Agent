@@ -9,11 +9,13 @@
     "typecheck": "tsc --noEmit",
     "claude:smoke": "tsx src/scripts/claudeSmoke.ts",
     "context:smoke": "tsx src/scripts/contextSmoke.ts",
-    "pipeline:smoke": "tsx src/scripts/pipelineSmoke.ts"
+    "pipeline:smoke": "tsx src/scripts/pipelineSmoke.ts",
+    "ncm:smoke": "tsx src/scripts/ncmSmoke.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",
     "express": "^4.21.2",
+    "NeteaseCloudMusicApi": "^4.31.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
