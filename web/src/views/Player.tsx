@@ -90,9 +90,10 @@ export default function Player() {
     const onEnded = () => setTtsHighlight(null)
     tts.addEventListener('timeupdate', onTime)
     tts.addEventListener('ended', onEnded)
-    // Will silently reject if the user hasn't tapped play yet (autoplay
-    // policy); subsequent turns will play once the gesture has happened.
-    tts.play().catch(() => {})
+    // Logs both the autoplay-policy rejection (expected on first turn
+    // before user gesture) and any real failure (404, decoding error).
+    // The latter is the kind of thing you want to see — keep it loud.
+    tts.play().catch((err) => console.warn('tts.play() rejected', err))
     return () => {
       tts.removeEventListener('timeupdate', onTime)
       tts.removeEventListener('ended', onEnded)

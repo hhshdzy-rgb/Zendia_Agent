@@ -17,6 +17,10 @@ export default defineConfig({
         ws: true,
         changeOrigin: true,
       },
+      '/tts': {
+        target: `http://localhost:${SERVER_PORT}`,
+        changeOrigin: true,
+      },
     },
   },
 })
