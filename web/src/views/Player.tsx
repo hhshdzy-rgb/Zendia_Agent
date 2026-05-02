@@ -16,7 +16,6 @@ export default function Player() {
   const [paused, setPaused] = useState(true)
   const [position, setPosition] = useState(0)
   const [duration, setDuration] = useState(0)
-  const [now, setNow] = useState(() => Date.now())
   const [ttsHighlight, setTtsHighlight] = useState<{ id: string; wordIdx: number } | null>(null)
   // Local state for the message whose TTS audio we are *currently playing*.
   // Decoupled from the server's status='speaking' window because that window
@@ -45,11 +44,6 @@ export default function Player() {
       text: speakingMsg.text,
     })
   }, [speakingMsg?.id, speakingMsg?.audioUrl, speakingMsg?.text, playingTts?.id])
-
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(id)
-  }, [])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -174,7 +168,6 @@ export default function Player() {
     }
   }
 
-  const elapsed = Math.max(0, Math.floor((now - state.sessionStartedAt) / 1000))
   const songWithLiveTime = {
     ...state.song,
     positionSec: position,
@@ -190,7 +183,7 @@ export default function Player() {
         crossOrigin="anonymous"
       />
       <audio ref={ttsAudioRef} preload="auto" />
-      <Header speaking={state.speaking} sessionElapsedSec={elapsed} />
+      <Header speaking={state.speaking} />
       <DJWaveform speaking={state.speaking} analyser={analyser} />
       <NowPlayingCard
         song={songWithLiveTime}

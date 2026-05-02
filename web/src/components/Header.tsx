@@ -1,12 +1,10 @@
 import { Link } from 'react-router-dom'
-import { formatTime } from '../lib/format'
 
 type Props = {
   speaking: boolean
-  sessionElapsedSec: number
 }
 
-export default function Header({ speaking, sessionElapsedSec }: Props) {
+export default function Header({ speaking }: Props) {
   return (
     <header className="player-header">
       <div className="player-header-left">
@@ -20,7 +18,6 @@ export default function Header({ speaking, sessionElapsedSec }: Props) {
         </div>
       </div>
       <div className="player-header-right">
-        <span className="player-header-clock mono">{formatTime(sessionElapsedSec)}</span>
         <Link to="/settings" className="icon-btn" aria-label="Open settings">
           <GearIcon />
         </Link>
