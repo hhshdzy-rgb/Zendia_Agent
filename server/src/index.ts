@@ -3,17 +3,19 @@ import http from 'node:http'
 import { Hub } from './hub.js'
 import { attachStreamWs } from './stream/wsServer.js'
 import { startScriptedDJ } from './stream/script.js'
+import { buildApiRouter } from './api.js'
 
 const PORT = Number(process.env.PORT ?? 8080)
 
 const app = express()
+const hub = new Hub()
 
 app.get('/healthz', (_req, res) => {
   res.json({ ok: true, service: 'zendia-server' })
 })
+app.use('/api', buildApiRouter(hub))
 
 const server = http.createServer(app)
-const hub = new Hub()
 attachStreamWs(server, hub)
 const stopScript = startScriptedDJ(hub)
 

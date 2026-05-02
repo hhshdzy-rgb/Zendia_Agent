@@ -22,6 +22,15 @@ export class Hub {
     }
   }
 
+  snapshot(): { sessionStartedAt: number; song: Song | null; speaking: boolean; messages: Message[] } {
+    return {
+      sessionStartedAt: this.sessionStartedAt,
+      song: this.song,
+      speaking: this.speaking,
+      messages: this.messages,
+    }
+  }
+
   subscribe(ws: WebSocket): void {
     this.clients.add(ws)
     this.sendSnapshot(ws)
