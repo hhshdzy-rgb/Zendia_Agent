@@ -41,4 +41,5 @@ state.db
 state.db-journal
 state.db-shm
 state.db-wal
+**/cache/tts/
 cache/tts/
