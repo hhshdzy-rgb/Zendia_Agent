@@ -12,7 +12,10 @@ import { buildDjDirective, parseDjReply } from '../dj-contract.js'
 
 const directive =
   process.argv[2] ??
-  buildDjDirective({ nextSongHint: '"Monday Night Exhale" by Bread' })
+  buildDjDirective({
+    nowPlaying: { title: 'Monday Night Exhale', artist: 'Bread' },
+    mode: 'mid-song',
+  })
 
 console.log('[pipeline] directive:', JSON.stringify(directive))
 console.log('[pipeline] building context...')

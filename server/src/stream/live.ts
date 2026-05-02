@@ -125,7 +125,13 @@ export function startLiveDJ(hub: Hub): () => void {
         weather: 'overcast, cool — placeholder',
       },
     })
-    const directive = buildDjDirective(currentSong ? { nowPlaying: currentSong } : {})
+    // Pick mode based on whether the song cooldown has elapsed. If we
+    // can't actually swap songs right now, telling the model to do an
+    // intro is wasteful (NCM resolves but cooldown blocks the swap).
+    const cooldownLeft =
+      lastSongChangeAt === 0 ? 0 : MIN_SONG_INTERVAL_MS - (Date.now() - lastSongChangeAt)
+    const mode: 'intro' | 'mid-song' = cooldownLeft <= 0 ? 'intro' : 'mid-song'
+    const directive = buildDjDirective(currentSong ? { nowPlaying: currentSong, mode } : { mode })
 
     let reply: DjReply | null = null
     try {

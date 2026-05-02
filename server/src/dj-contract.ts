@@ -37,38 +37,48 @@ export function parseDjReply(text: string): DjReply | null {
 export function buildDjDirective(
   opts: {
     nowPlaying?: { title: string; artist: string }
-    nextSongHint?: string
+    mode?: 'intro' | 'mid-song' | 'auto'
   } = {},
 ): string {
-  const lines: string[] = []
+  const lines: string[] = ['Generate the next DJ segment.']
+  const mode = opts.mode ?? 'auto'
 
   if (opts.nowPlaying) {
     lines.push(
-      `Right now the listener is hearing: "${opts.nowPlaying.title}" by ${opts.nowPlaying.artist}.`,
       '',
-      'React to THIS song — an impression, a small memory, what the moment feels like with this track in the room. Not an introduction. Not "up next". Talk about the song as if it is already playing (because it is).',
-      '',
-      'For `play`: leave it [] unless this song has been playing long enough that it is time for a change. If you do queue a next track, pick something that segues naturally.',
+      `Currently playing: "${opts.nowPlaying.title}" by ${opts.nowPlaying.artist}.`,
     )
   } else {
     lines.push(
-      'This is the first DJ turn of the session — pick a song to start with and say a brief opening thought. Keep it conversational, not a "welcome to my radio show" cliché.',
+      '',
+      'No song is playing yet — this is the first turn of the session. Pick something to start with.',
     )
+  }
+
+  lines.push('', 'Produce a substantial radio segment, ~30-60 seconds of speech (about 60-120 words). Build a small arc:')
+  lines.push('  1. Context: who wrote / recorded it, roughly when, what scene or genre.')
+  lines.push('  2. Feeling / theme: what the song is trying to say, or how it lands in this moment.')
+  lines.push('  3. Hand-off: a clean exit into the music ("接下来请欣赏…" or equivalent).')
+  lines.push('')
+  if (mode === 'intro') {
+    lines.push('Intro mode: queue a NEW song in play[] and use steps 1-2-3 to introduce it.')
+  } else if (mode === 'mid-song') {
+    lines.push('Mid-song mode: leave play empty and use steps 1-2 to deepen the current track.')
+  } else {
+    lines.push('Choose intro mode (queue new song in play[]) or mid-song mode (play=[]) based on what the moment calls for.')
   }
 
   lines.push(
     '',
-    'Reply with ONLY a single JSON object on one line. Start with { and end with }.',
-    'No prose, no quotes around the whole reply, no markdown.',
+    'Match the song\'s language. Chinese song → Chinese DJ. English song → English DJ.',
     '',
-    'Required keys: say (string, 1-2 sentence DJ thought), play (string[]), reason (string), segue (string, "" if none).',
+    'Reply with ONLY a single JSON object. Start with { and end with }.',
+    'No prose, no quotes around the whole reply, no markdown fences.',
+    '',
+    'Required keys: say (string, 60-120 words), play (string[]), reason (string), segue (string, "" if none).',
     '',
     'Example of a valid full reply:',
-    '{"say":"Monday Night Exhale always sounds like the room got a little quieter — that nylon-string pull never misses.","play":[],"reason":"Mid-song reflection, no swap needed","segue":""}',
+    '{"say":"接下来这首是周杰伦的《晴天》,2003年发行,收在《叶惠美》这张专辑里。这是他自己作词作曲的钢琴民谣,讲的是青春期那种朦胧又笨拙的暗恋——你想说一句喜欢,可还是绕了一整个夏天。听这首歌的时候,你会想起某个具体的午后,阳光是斜的,身边那个人正在笑。接下来请欣赏。","play":["晴天 周杰伦"],"reason":"傍晚柔光,适合一首怀旧又柔软的钢琴民谣开场","segue":""}',
   )
-
-  if (opts.nextSongHint) {
-    lines.push('', `Hint: a candidate next track is ${opts.nextSongHint}.`)
-  }
   return lines.join('\n')
 }
