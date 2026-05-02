@@ -13,6 +13,7 @@ export type Message = {
   text: string
   status: 'pending' | 'speaking' | 'done'
   highlightWord?: number
+  audioUrl?: string
 }
 
 export type PlayerState = {

@@ -16,6 +16,7 @@ export type Message = {
   text: string
   status: 'pending' | 'speaking' | 'done'
   highlightWord?: number
+  audioUrl?: string  // /tts/<hash>.mp3 when TTS synthesis succeeded
 }
 
 export type ServerEvent =

@@ -3,6 +3,7 @@ import { buildContext } from '../context.js'
 import { buildDjDirective, parseDjReply, type DjReply } from '../dj-contract.js'
 import type { Hub } from '../hub.js'
 import { getSongUrl, searchSong } from '../ncm.js'
+import { synthesize } from '../tts.js'
 import type { Song } from '../types.js'
 
 // Live DJ — replaces the scripted replay with real Claude generations.
@@ -32,6 +33,17 @@ const FALLBACK_SONG: Song = {
   streamUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
   durationSec: 0,
   positionSec: 0,
+}
+
+// Wrapper so a Fish Audio failure (no key, 402 balance, network) just
+// means "no voice this turn" instead of crashing the whole loop.
+async function synthesizeSafely(text: string): ReturnType<typeof synthesize> {
+  try {
+    return await synthesize(text)
+  } catch (err) {
+    console.warn('[live] tts failed:', (err as Error).message)
+    return null
+  }
 }
 
 // Walk the model's queue in order; for each query, search NCM and try
@@ -125,9 +137,13 @@ export function startLiveDJ(hub: Hub): () => void {
       return
     }
 
-    // Pre-resolve the play queue while DJ is "speaking" so the new song
-    // is ready the moment the line ends — natural radio cadence.
-    const nextSong = reply.play.length > 0 ? await resolvePlayQueue(reply.play) : null
+    // Resolve the next song AND synthesize the DJ voice in parallel —
+    // both are independent and either can fail without blocking the other.
+    const [nextSong, voice] = await Promise.all([
+      reply.play.length > 0 ? resolvePlayQueue(reply.play) : Promise.resolve(null),
+      synthesizeSafely(reply.say),
+    ])
+
     if (reply.play.length > 0) {
       if (nextSong) {
         console.log(`[live] resolved -> ${nextSong.title} — ${nextSong.artist}`)
@@ -135,8 +151,11 @@ export function startLiveDJ(hub: Hub): () => void {
         console.warn(`[live] could not resolve any of: ${JSON.stringify(reply.play)}`)
       }
     }
+    if (voice) {
+      console.log(`[live] tts ${voice.cached ? 'cached' : 'fresh'} ${voice.bytes}B -> ${voice.url}`)
+    }
 
-    speakLine(reply, () => {
+    speakLine(reply, voice?.url, () => {
       if (nextSong) {
         hub.emit({ type: 'song', song: nextSong })
       }
@@ -146,7 +165,7 @@ export function startLiveDJ(hub: Hub): () => void {
     })
   }
 
-  function speakLine(reply: DjReply, onDone: () => void) {
+  function speakLine(reply: DjReply, audioUrl: string | undefined, onDone: () => void) {
     const id = `live-${Date.now()}`
     const ts = Math.floor((Date.now() - hub.sessionStartedAt) / 1000)
     const wordCount = reply.say.split(/\s+/).filter(Boolean).length
@@ -154,14 +173,29 @@ export function startLiveDJ(hub: Hub): () => void {
     hub.emit({ type: 'tts_state', state: 'speaking' })
     hub.emit({
       type: 'message_new',
-      message: { id, ts, text: reply.say, status: 'speaking', highlightWord: 0 },
+      message: {
+        id,
+        ts,
+        text: reply.say,
+        status: 'speaking',
+        highlightWord: 0,
+        ...(audioUrl && { audioUrl }),
+      },
     })
 
-    for (let w = 0; w < wordCount; w++) {
-      later(w * PER_WORD_MS, () => {
-        hub.emit({ type: 'message_word', id, wordIdx: w })
-      })
+    // When TTS audio is present, the frontend drives word highlighting from
+    // audio.currentTime — skip the per-word event spam. Only schedule the
+    // done/idle transition (still on the 220ms estimate; if audio runs
+    // longer, frontend keeps playing until it ends; if shorter, status
+    // flips slightly before audio finishes — both tolerable for MVP).
+    if (!audioUrl) {
+      for (let w = 0; w < wordCount; w++) {
+        later(w * PER_WORD_MS, () => {
+          hub.emit({ type: 'message_word', id, wordIdx: w })
+        })
+      }
     }
+
     later(wordCount * PER_WORD_MS, () => {
       hub.emit({ type: 'message_done', id })
       hub.emit({ type: 'tts_state', state: 'idle' })
