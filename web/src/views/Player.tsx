@@ -9,6 +9,8 @@ import './Player.css'
 export default function Player() {
   const state = usePlayerStream()
   const audioRef = useRef<HTMLAudioElement>(null)
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null)
   const [paused, setPaused] = useState(true)
   const [position, setPosition] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -38,9 +40,36 @@ export default function Player() {
     }
   }, [])
 
+  useEffect(() => {
+    return () => {
+      audioCtxRef.current?.close().catch(() => {})
+    }
+  }, [])
+
+  const ensureAudioGraph = () => {
+    const audio = audioRef.current
+    if (!audio || audioCtxRef.current) return
+    try {
+      const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      const ctx = new Ctor()
+      const source = ctx.createMediaElementSource(audio)
+      const node = ctx.createAnalyser()
+      node.fftSize = 256
+      node.smoothingTimeConstant = 0.6
+      source.connect(node)
+      node.connect(ctx.destination)
+      audioCtxRef.current = ctx
+      setAnalyser(node)
+    } catch (err) {
+      console.warn('AudioContext setup failed', err)
+    }
+  }
+
   const togglePlay = () => {
     const audio = audioRef.current
     if (!audio) return
+    ensureAudioGraph()
+    audioCtxRef.current?.resume().catch(() => {})
     if (audio.paused) {
       audio.play().catch((err) => console.warn('audio.play() rejected', err))
     } else {
@@ -64,7 +93,7 @@ export default function Player() {
         crossOrigin="anonymous"
       />
       <Header speaking={state.speaking} sessionElapsedSec={elapsed} />
-      <DJWaveform speaking={state.speaking} />
+      <DJWaveform speaking={state.speaking} analyser={analyser} />
       <NowPlayingCard
         song={songWithLiveTime}
         paused={paused}

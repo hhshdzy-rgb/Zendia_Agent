@@ -134,6 +134,13 @@
   opacity: 0.9;
 }
 
+.dj-waveform.is-live .dj-bar {
+  /* Heights are driven per-frame from AnalyserNode, so disable
+     transitions to avoid lag. Color/opacity transitions still feel
+     fine because they only react to the speaking state flag. */
+  transition: background 240ms ease, opacity 240ms ease;
+}
+
 /* ---------- Now playing card ---------- */
 .now-playing {
   background: var(--card);
