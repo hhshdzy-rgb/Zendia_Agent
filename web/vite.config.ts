@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-const SERVER_PORT = process.env.ZENDIA_SERVER_PORT ?? '8080'
+const SERVER_PORT = process.env.ZENDIA_SERVER_PORT ?? '8910'
 
 // https://vite.dev/config/
 export default defineConfig({

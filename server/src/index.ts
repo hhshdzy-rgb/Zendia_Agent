@@ -5,7 +5,7 @@ import { attachStreamWs } from './stream/wsServer.js'
 import { startScriptedDJ } from './stream/script.js'
 import { buildApiRouter } from './api.js'
 
-const PORT = Number(process.env.PORT ?? 8080)
+const PORT = Number(process.env.PORT ?? 8910)
 
 const app = express()
 const hub = new Hub()
