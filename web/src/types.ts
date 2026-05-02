@@ -4,6 +4,7 @@ export type Song = {
   album: string
   durationSec: number
   positionSec: number
+  streamUrl?: string
 }
 
 export type Message = {

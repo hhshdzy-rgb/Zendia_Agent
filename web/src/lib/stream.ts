@@ -43,10 +43,12 @@ export function createMockStream(): EventStream {
   const sessionStartedAt = Date.now()
   const song: Song = {
     title: 'Monday Night Exhale',
-    artist: 'Bread',
-    album: 'If',
-    durationSec: 207,
-    positionSec: 140,
+    artist: 'SoundHelix',
+    album: 'Demo',
+    // SoundHelix CC0 demo track — replaceable when real backend lands
+    streamUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    durationSec: 0, // filled in by audio element on load
+    positionSec: 0,
   }
 
   // Boot sequence
@@ -66,12 +68,8 @@ export function createMockStream(): EventStream {
     })
   })
 
-  // Song position ticker
-  let pos = song.positionSec
-  intervals.add(setInterval(() => {
-    pos = (pos + 1) % song.durationSec
-    emit({ type: 'song_progress', positionSec: pos })
-  }, 1000))
+  // Position is now driven by the <audio> element's timeupdate event,
+  // so the mock no longer emits song_progress.
 
   // Looping speaking-message generator
   let cycle = 0
