@@ -1,4 +1,4 @@
-import type { Message, Song } from '../types'
+import type { ClientEvent, Message, Song } from '../types'
 
 export type ServerEvent =
   | { type: 'hello'; sessionStartedAt: number }
@@ -11,6 +11,7 @@ export type ServerEvent =
 
 export type EventStream = {
   subscribe: (handler: (e: ServerEvent) => void) => () => void
+  send: (event: ClientEvent) => void
   close: () => void
 }
 
@@ -108,6 +109,9 @@ export function createMockStream(): EventStream {
         handlers.delete(h)
       }
     },
+    send: () => {
+      // Mock has no server to talk to — drop client events on the floor.
+    },
     close: () => {
       handlers.clear()
       timers.forEach((t) => clearTimeout(t))
@@ -162,6 +166,14 @@ export function createWebSocketStream(url: string): EventStream {
       return () => {
         handlers.delete(h)
       }
+    },
+    send: (event) => {
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(event))
+      }
+      // Drop frames that arrive before the socket is open. The events
+      // we care about (song_ended) are observed events anyway, not
+      // commands — losing one is fine.
     },
     close: () => {
       closed = true

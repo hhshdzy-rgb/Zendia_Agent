@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createMockStream, createWebSocketStream, type ServerEvent } from '../lib/stream'
-import type { PlayerState } from '../types'
+import type { ClientEvent, PlayerState } from '../types'
 
 const INITIAL: PlayerState = {
   sessionStartedAt: Date.now(),
@@ -14,14 +14,22 @@ const INITIAL: PlayerState = {
 // scripted demo (e.g. for offline UI work or CI screenshots).
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
-export function usePlayerStream(): PlayerState {
+export type PlayerStream = {
+  state: PlayerState
+  send: (event: ClientEvent) => void
+}
+
+export function usePlayerStream(): PlayerStream {
   const [state, setState] = useState<PlayerState>(INITIAL)
+  const sendRef = useRef<(event: ClientEvent) => void>(() => {})
 
   useEffect(() => {
     const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws'
     const stream = USE_MOCK
       ? createMockStream()
       : createWebSocketStream(`${wsProto}://${window.location.host}/stream`)
+
+    sendRef.current = stream.send
 
     const unsubscribe = stream.subscribe((e) => {
       setState((prev) => reduce(prev, e))
@@ -30,10 +38,12 @@ export function usePlayerStream(): PlayerState {
     return () => {
       unsubscribe()
       stream.close()
+      sendRef.current = () => {}
     }
   }, [])
 
-  return state
+  const send = useCallback((event: ClientEvent) => sendRef.current(event), [])
+  return { state, send }
 }
 
 function reduce(state: PlayerState, e: ServerEvent): PlayerState {

@@ -96,12 +96,17 @@ export function startLiveDJ(hub: Hub): () => void {
   // track gets a different streamUrl every resolve; if we re-emit, the
   // frontend reloads audio from position 0. Dedup by stable id.
   let lastSongId: number | undefined
-  // When did we last actually swap the song? Cooldown gate below.
+  // When did we last actually swap the song? Cooldown is the safety
+  // floor — the real swap gate below is hub.isCurrentSongEnded().
   let lastSongChangeAt = 0
   // The DJ comments on whatever's currently playing — track its title +
   // artist so the directive can name it specifically.
   let currentSong: { title: string; artist: string } | null = null
+  let turnInFlight = false
   const timers = new Set<ReturnType<typeof setTimeout>>()
+  // The setTimeout that will fire the next generateTurn. Kept named so
+  // the song_ended listener can cancel + reschedule it.
+  let nextTurnTimer: ReturnType<typeof setTimeout> | null = null
   const later = (ms: number, fn: () => void) => {
     const t = setTimeout(() => {
       timers.delete(t)
@@ -109,11 +114,28 @@ export function startLiveDJ(hub: Hub): () => void {
     }, ms)
     timers.add(t)
   }
+  const scheduleNextTurn = (delayMs: number) => {
+    if (nextTurnTimer) clearTimeout(nextTurnTimer)
+    nextTurnTimer = setTimeout(() => {
+      nextTurnTimer = null
+      if (!stopped) generateTurn()
+    }, delayMs)
+  }
+
+  // When the client says "current song finished", run the next turn
+  // immediately (instead of waiting out the rest of PAUSE_BETWEEN_MS).
+  // Skips if a turn is already in flight to avoid stomping.
+  const unsubscribeSongEnded = hub.onSongEnded(() => {
+    if (turnInFlight) return
+    console.log('[live] client signaled song_ended — triggering next turn now')
+    scheduleNextTurn(0)
+  })
 
   hub.emit({ type: 'song', song: FALLBACK_SONG })
 
   const generateTurn = async () => {
-    if (stopped) return
+    if (stopped || turnInFlight) return
+    turnInFlight = true
     const turnStart = Date.now()
 
     // Weather is a hardcoded placeholder until OpenWeather lands; even a
@@ -125,12 +147,12 @@ export function startLiveDJ(hub: Hub): () => void {
         weather: 'overcast, cool — placeholder',
       },
     })
-    // Pick mode based on whether the song cooldown has elapsed. If we
-    // can't actually swap songs right now, telling the model to do an
-    // intro is wasteful (NCM resolves but cooldown blocks the swap).
-    const cooldownLeft =
-      lastSongChangeAt === 0 ? 0 : MIN_SONG_INTERVAL_MS - (Date.now() - lastSongChangeAt)
-    const mode: 'intro' | 'mid-song' = cooldownLeft <= 0 ? 'intro' : 'mid-song'
+    // The real swap gate is "did the client say the song ended?". If
+    // not, we can't swap, so don't waste the model's tokens on an intro;
+    // ask for mid-song commentary instead.
+    const songEnded = hub.isCurrentSongEnded()
+    const isFirstSong = lastSongChangeAt === 0
+    const mode: 'intro' | 'mid-song' = songEnded || isFirstSong ? 'intro' : 'mid-song'
     const directive = buildDjDirective(currentSong ? { nowPlaying: currentSong, mode } : { mode })
 
     let reply: DjReply | null = null
@@ -158,7 +180,8 @@ export function startLiveDJ(hub: Hub): () => void {
     if (stopped) return
     if (!reply) {
       // Skip this turn but keep the loop alive
-      later(MIN_TURN_MS, generateTurn)
+      turnInFlight = false
+      scheduleNextTurn(MIN_TURN_MS)
       return
     }
 
@@ -185,11 +208,17 @@ export function startLiveDJ(hub: Hub): () => void {
         const sameSong = nextSong.id === lastSongId
         const sinceLastSwap = Date.now() - lastSongChangeAt
         const cooldownLeft = MIN_SONG_INTERVAL_MS - sinceLastSwap
+        const songEndedNow = hub.isCurrentSongEnded()
+        const isFirstSong = lastSongChangeAt === 0
         if (sameSong) {
           console.log(`[live] same song (${nextSong.id}) — skipping song event to avoid restart`)
-        } else if (cooldownLeft > 0 && lastSongChangeAt > 0) {
+        } else if (!songEndedNow && !isFirstSong) {
           console.log(
-            `[live] cooldown ${Math.round(cooldownLeft / 1000)}s — keep current song, ignoring "${nextSong.title}"`,
+            `[live] song still playing — keep "${currentSong?.title}", ignoring "${nextSong.title}" until client signals song_ended`,
+          )
+        } else if (cooldownLeft > 0 && !isFirstSong) {
+          console.log(
+            `[live] safety cooldown ${Math.round(cooldownLeft / 1000)}s — holding "${nextSong.title}"`,
           )
         } else {
           hub.emit({ type: 'song', song: nextSong })
@@ -198,9 +227,10 @@ export function startLiveDJ(hub: Hub): () => void {
           currentSong = { title: nextSong.title, artist: nextSong.artist }
         }
       }
+      turnInFlight = false
       const elapsed = Date.now() - turnStart
       const wait = Math.max(PAUSE_BETWEEN_MS, MIN_TURN_MS - elapsed)
-      later(wait, generateTurn)
+      scheduleNextTurn(wait)
     })
   }
 
@@ -244,11 +274,14 @@ export function startLiveDJ(hub: Hub): () => void {
 
   // Kick off the first turn after a short delay so the WS handshake
   // has time to settle for any client that connected at boot.
-  later(500, generateTurn)
+  scheduleNextTurn(500)
 
   return () => {
     stopped = true
+    if (nextTurnTimer) clearTimeout(nextTurnTimer)
+    nextTurnTimer = null
     timers.forEach((t) => clearTimeout(t))
     timers.clear()
+    unsubscribeSongEnded()
   }
 }

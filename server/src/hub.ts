@@ -1,6 +1,6 @@
 import type { WebSocket } from 'ws'
 import { messagesRepo } from './db.js'
-import type { Message, ServerEvent, Song } from './types.js'
+import type { ClientEvent, Message, ServerEvent, Song } from './types.js'
 
 // Single shared broadcaster. State is the union of the most recent
 // "snapshot-worthy" events (song, speaking, recent messages); when a new
@@ -19,6 +19,38 @@ export class Hub {
   private speaking = false
   private messages: Message[] = []
   private clients = new Set<WebSocket>()
+  // Set true when any client telegrams "the song you sent us has finished
+  // playing". Reset to false on the next song event. Lets the live loop
+  // wait for the actual song to end before swapping, instead of relying
+  // on a time-based cooldown guess.
+  private currentSongEnded = false
+  private songEndedListeners = new Set<() => void>()
+
+  isCurrentSongEnded(): boolean {
+    return this.currentSongEnded
+  }
+
+  onSongEnded(fn: () => void): () => void {
+    this.songEndedListeners.add(fn)
+    return () => {
+      this.songEndedListeners.delete(fn)
+    }
+  }
+
+  handleClientEvent(event: ClientEvent): void {
+    switch (event.type) {
+      case 'song_ended':
+        // Match against current song id when the client provides one — guards
+        // against a stale "ended" for a song the server already swapped past.
+        if (event.id !== undefined && event.id !== this.song?.id) return
+        if (this.currentSongEnded) return
+        this.currentSongEnded = true
+        this.songEndedListeners.forEach((fn) => fn())
+        return
+      case 'ping':
+        return
+    }
+  }
 
   emit(event: ServerEvent): void {
     this.apply(event)
@@ -60,6 +92,7 @@ export class Hub {
     switch (event.type) {
       case 'song':
         this.song = event.song
+        this.currentSongEnded = false
         return
       case 'song_progress':
         if (this.song) this.song = { ...this.song, positionSec: event.positionSec }

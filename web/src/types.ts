@@ -17,6 +17,10 @@ export type Message = {
   audioUrl?: string
 }
 
+export type ClientEvent =
+  | { type: 'song_ended'; id?: number }
+  | { type: 'ping' }
+
 export type PlayerState = {
   sessionStartedAt: number
   speaking: boolean

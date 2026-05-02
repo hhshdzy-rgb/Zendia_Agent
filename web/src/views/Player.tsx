@@ -8,7 +8,7 @@ import { usePlayerStream } from '../hooks/usePlayerStream'
 import './Player.css'
 
 export default function Player() {
-  const state = usePlayerStream()
+  const { state, send } = usePlayerStream()
   const audioRef = useRef<HTMLAudioElement>(null)
   const ttsAudioRef = useRef<HTMLAudioElement>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
@@ -79,6 +79,18 @@ export default function Player() {
     if (!audio || !audioCtxRef.current || !state.song.streamUrl) return
     audio.play().catch((err) => console.warn('audio.play() after src swap rejected', err))
   }, [state.song.streamUrl])
+
+  // When the music finishes naturally, tell the server. The live loop
+  // gates new song events on this signal so songs always play through.
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    const onEnded = () => {
+      send({ type: 'song_ended', ...(state.song.id !== undefined && { id: state.song.id }) })
+    }
+    audio.addEventListener('ended', onEnded)
+    return () => audio.removeEventListener('ended', onEnded)
+  }, [state.song.id, send])
 
   // TTS setup: when a new utterance arrives, set src + wire highlight
   // listeners. Playback start/stop is handled by the next effect (driven

@@ -30,3 +30,8 @@ export type ServerEvent =
   | { type: 'message_new'; message: Message }
   | { type: 'message_word'; id: string; wordIdx: number }
   | { type: 'message_done'; id: string }
+
+// Client → server messages over the same WS.
+export type ClientEvent =
+  | { type: 'song_ended'; id?: number }
+  | { type: 'ping' }
