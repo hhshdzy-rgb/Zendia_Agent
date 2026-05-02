@@ -18,7 +18,10 @@ import type { Song } from '../types.js'
 // crashes the server, never burns into a tight retry storm.
 
 const PER_WORD_MS = 220
-const PAUSE_BETWEEN_MS = Number(process.env.ZENDIA_DJ_PAUSE_MS ?? 5000)
+// Default cadence: ~one DJ thought per song. 180s pause + ~15s turn time =
+// roughly 3-3.5 min between utterances, matching how a real station treats
+// commentary as a side channel rather than the main event.
+const PAUSE_BETWEEN_MS = Number(process.env.ZENDIA_DJ_PAUSE_MS ?? 180_000)
 const MIN_TURN_MS = Number(process.env.ZENDIA_DJ_MIN_TURN_MS ?? 8000)
 const CLAUDE_TIMEOUT_MS = 30_000
 // Don't actually swap the song more than this often, no matter what the
@@ -95,6 +98,9 @@ export function startLiveDJ(hub: Hub): () => void {
   let lastSongId: number | undefined
   // When did we last actually swap the song? Cooldown gate below.
   let lastSongChangeAt = 0
+  // The DJ comments on whatever's currently playing — track its title +
+  // artist so the directive can name it specifically.
+  let currentSong: { title: string; artist: string } | null = null
   const timers = new Set<ReturnType<typeof setTimeout>>()
   const later = (ms: number, fn: () => void) => {
     const t = setTimeout(() => {
@@ -119,7 +125,7 @@ export function startLiveDJ(hub: Hub): () => void {
         weather: 'overcast, cool — placeholder',
       },
     })
-    const directive = buildDjDirective()
+    const directive = buildDjDirective(currentSong ? { nowPlaying: currentSong } : {})
 
     let reply: DjReply | null = null
     try {
@@ -183,6 +189,7 @@ export function startLiveDJ(hub: Hub): () => void {
           hub.emit({ type: 'song', song: nextSong })
           lastSongId = nextSong.id
           lastSongChangeAt = Date.now()
+          currentSong = { title: nextSong.title, artist: nextSong.artist }
         }
       }
       const elapsed = Date.now() - turnStart
