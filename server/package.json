@@ -8,7 +8,8 @@
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "claude:smoke": "tsx src/scripts/claudeSmoke.ts",
-    "context:smoke": "tsx src/scripts/contextSmoke.ts"
+    "context:smoke": "tsx src/scripts/contextSmoke.ts",
+    "pipeline:smoke": "tsx src/scripts/pipelineSmoke.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",
