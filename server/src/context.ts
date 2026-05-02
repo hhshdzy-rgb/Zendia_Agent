@@ -68,10 +68,24 @@ function readUserCorpus(): string {
     .join('\n\n---\n\n')
 }
 
+function deriveDaySegment(now: Date): string {
+  const h = now.getHours()
+  if (h < 6) return 'late night'
+  if (h < 9) return 'early morning'
+  if (h < 12) return 'morning'
+  if (h < 14) return 'midday'
+  if (h < 18) return 'afternoon'
+  if (h < 21) return 'evening'
+  return 'night'
+}
+
 function formatEnvironment(env: Environment | undefined): string {
   const lines: string[] = []
   const now = env?.now ?? new Date()
+  const dow = now.toLocaleDateString('en-US', { weekday: 'long' })
   lines.push(`- now: ${now.toISOString()}`)
+  lines.push(`- day-of-week: ${dow}`)
+  lines.push(`- day-segment: ${deriveDaySegment(now)}`)
   if (env?.weather) lines.push(`- weather: ${env.weather}`)
   if (env?.calendar) lines.push(`- calendar: ${env.calendar}`)
   return lines.join('\n')
@@ -104,7 +118,13 @@ export function buildContext(input: ContextInput = {}): AssembledContext {
   if (persona) sections.push(`# Persona\n\n${persona}`)
   if (userCorpus) sections.push(`# User corpus\n\n${userCorpus}`)
   sections.push(`# Environment\n\n${environment}`)
-  sections.push(`# Recent timeline (most recent last)\n\n${retrievedMemory}`)
+
+  const memoryHeading =
+    recent.length > 0
+      ? `# Recent — your last ${recent.length} turn(s). Vary your opener, phrasing, energy, and song picks; do not echo any of these.`
+      : `# Recent — no prior turns yet.`
+  sections.push(`${memoryHeading}\n\n${retrievedMemory}`)
+
   if (userInput) sections.push(`# User input\n\n${userInput}`)
   if (trace) sections.push(`# Execution trace\n\n${trace}`)
 

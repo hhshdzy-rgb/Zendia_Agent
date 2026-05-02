@@ -49,7 +49,15 @@ export function startLiveDJ(hub: Hub): () => void {
     if (stopped) return
     const turnStart = Date.now()
 
-    const ctx = buildContext({ environment: { now: new Date() } })
+    // Weather is a hardcoded placeholder until OpenWeather lands; even a
+    // wrong-but-present weather string nudges the model away from generic
+    // "feel-good Saturday night" output toward something mood-aware.
+    const ctx = buildContext({
+      environment: {
+        now: new Date(),
+        weather: 'overcast, cool — placeholder',
+      },
+    })
     const directive = buildDjDirective()
 
     let reply: DjReply | null = null
