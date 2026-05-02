@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "claude:smoke": "tsx src/scripts/claudeSmoke.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",
