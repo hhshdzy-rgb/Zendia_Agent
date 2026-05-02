@@ -2,6 +2,7 @@ import { runClaude } from '../claude.js'
 import { buildContext } from '../context.js'
 import { buildDjDirective, parseDjReply, type DjReply } from '../dj-contract.js'
 import type { Hub } from '../hub.js'
+import { getSongUrl, searchSong } from '../ncm.js'
 import type { Song } from '../types.js'
 
 // Live DJ — replaces the scripted replay with real Claude generations.
@@ -20,16 +21,51 @@ const PAUSE_BETWEEN_MS = Number(process.env.ZENDIA_DJ_PAUSE_MS ?? 5000)
 const MIN_TURN_MS = Number(process.env.ZENDIA_DJ_MIN_TURN_MS ?? 8000)
 const CLAUDE_TIMEOUT_MS = 30_000
 
-// Until NCM is wired, every turn streams the same demo song from
-// SoundHelix. The model's `play` field is captured + logged so we can
-// see what it would have queued.
-const DEMO_SONG: Song = {
+// Fallback when NCM can't resolve any of the model's play[] entries
+// (region-locked, VIP-only, or the model invented a song that doesn't
+// exist on NCM). We keep streaming the demo until the next turn picks
+// something playable.
+const FALLBACK_SONG: Song = {
   title: 'Monday Night Exhale',
   artist: 'SoundHelix',
   album: 'Demo',
   streamUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
   durationSec: 0,
   positionSec: 0,
+}
+
+// Walk the model's queue in order; for each query, search NCM and try
+// to resolve a stream URL on each hit. Return the first that works.
+async function resolvePlayQueue(queries: string[]): Promise<Song | null> {
+  for (const query of queries) {
+    if (!query.trim()) continue
+    let hits
+    try {
+      hits = await searchSong(query, 5)
+    } catch (err) {
+      console.warn(`[live] ncm search threw for "${query}":`, (err as Error).message)
+      continue
+    }
+    for (const hit of hits) {
+      let url
+      try {
+        url = await getSongUrl(hit.id)
+      } catch (err) {
+        console.warn(`[live] ncm song_url threw for ${hit.id}:`, (err as Error).message)
+        continue
+      }
+      if (!url) continue
+      return {
+        title: hit.name,
+        artist: hit.artists.join(', '),
+        album: hit.album,
+        streamUrl: url.url,
+        durationSec: 0,
+        positionSec: 0,
+      }
+    }
+  }
+  return null
 }
 
 export function startLiveDJ(hub: Hub): () => void {
@@ -43,7 +79,7 @@ export function startLiveDJ(hub: Hub): () => void {
     timers.add(t)
   }
 
-  hub.emit({ type: 'song', song: DEMO_SONG })
+  hub.emit({ type: 'song', song: FALLBACK_SONG })
 
   const generateTurn = async () => {
     if (stopped) return
@@ -89,7 +125,21 @@ export function startLiveDJ(hub: Hub): () => void {
       return
     }
 
+    // Pre-resolve the play queue while DJ is "speaking" so the new song
+    // is ready the moment the line ends — natural radio cadence.
+    const nextSong = reply.play.length > 0 ? await resolvePlayQueue(reply.play) : null
+    if (reply.play.length > 0) {
+      if (nextSong) {
+        console.log(`[live] resolved -> ${nextSong.title} — ${nextSong.artist}`)
+      } else {
+        console.warn(`[live] could not resolve any of: ${JSON.stringify(reply.play)}`)
+      }
+    }
+
     speakLine(reply, () => {
+      if (nextSong) {
+        hub.emit({ type: 'song', song: nextSong })
+      }
       const elapsed = Date.now() - turnStart
       const wait = Math.max(PAUSE_BETWEEN_MS, MIN_TURN_MS - elapsed)
       later(wait, generateTurn)
