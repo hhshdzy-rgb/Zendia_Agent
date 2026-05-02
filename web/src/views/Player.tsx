@@ -86,9 +86,9 @@ export default function Player() {
     audio.play().catch((err) => console.warn('audio.play() after src swap rejected', err))
   }, [state.song.streamUrl])
 
-  // TTS playback + word-sync. Driven by `playingTts` (local), NOT by the
-  // server's speaking-message window — so the audio plays to its natural
-  // end even if the server says message_done partway through.
+  // TTS setup: when a new utterance arrives, set src + wire highlight
+  // listeners. Playback start/stop is handled by the next effect (driven
+  // by `paused`), so a paused user doesn't hear the DJ.
   useEffect(() => {
     const tts = ttsAudioRef.current
     if (!tts || !playingTts) return
@@ -111,15 +111,28 @@ export default function Player() {
     }
     tts.addEventListener('timeupdate', onTime)
     tts.addEventListener('ended', onEnded)
-    // Logs both the autoplay-policy rejection (expected on first turn
-    // before user gesture) and any real failure (404, decoding error).
-    // The latter is the kind of thing you want to see — keep it loud.
-    tts.play().catch((err) => console.warn('tts.play() rejected', err))
     return () => {
       tts.removeEventListener('timeupdate', onTime)
       tts.removeEventListener('ended', onEnded)
     }
   }, [playingTts])
+
+  // TTS play/pause: tied to the user's pause toggle. Pause → DJ goes
+  // silent immediately. Resume → if there's an in-flight utterance,
+  // continue from where it was paused; new utterances arriving while
+  // paused get queued (set as playingTts but not played) and start
+  // when the user un-pauses.
+  useEffect(() => {
+    const tts = ttsAudioRef.current
+    if (!tts) return
+    if (paused) {
+      tts.pause()
+    } else if (playingTts) {
+      // Logs both the autoplay-policy rejection (expected on first turn
+      // before user gesture) and any real failure (404, decoding error).
+      tts.play().catch((err) => console.warn('tts.play() rejected', err))
+    }
+  }, [paused, playingTts])
 
   // Music ducking: drop volume while DJ audio is actually playing (keyed
   // on `playingTts`, not the server status), so the song doesn't ramp
