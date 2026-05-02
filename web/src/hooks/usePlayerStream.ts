@@ -9,7 +9,10 @@ const INITIAL: PlayerState = {
   messages: [],
 }
 
-const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? 'true') !== 'false'
+// Default: connect to the real Node server (via Vite proxy in dev,
+// same-origin in prod). Set VITE_USE_MOCK=true to keep the in-browser
+// scripted demo (e.g. for offline UI work or CI screenshots).
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
 export function usePlayerStream(): PlayerState {
   const [state, setState] = useState<PlayerState>(INITIAL)
