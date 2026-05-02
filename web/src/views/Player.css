@@ -24,6 +24,13 @@
   height: 32px;
   border-radius: 50%;
   background: linear-gradient(135deg, #4a4a4a, #1a1a1a);
+  display: block;
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+
+.avatar:active {
+  transform: scale(0.92);
 }
 
 .player-header-text {
@@ -69,9 +76,35 @@
   50% { opacity: 1; }
 }
 
+.player-header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .player-header-clock {
   font-size: 16px;
   color: var(--text);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--text-dim);
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.icon-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.icon-btn:active {
+  transform: scale(0.92);
 }
 
 .mono {
