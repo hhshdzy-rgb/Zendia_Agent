@@ -36,7 +36,9 @@ Thumbs.db
 .parcel-cache/
 .turbo/
 
-# Local server data (future)
+# Local server data
 state.db
 state.db-journal
+state.db-shm
+state.db-wal
 cache/tts/
