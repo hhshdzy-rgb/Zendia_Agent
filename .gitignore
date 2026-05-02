@@ -19,6 +19,9 @@ pnpm-debug.log*
 *.swp
 *.swo
 
+# Claude Code session-local settings (use settings.local.json instead if needed)
+.claude/
+
 # OS
 .DS_Store
 Thumbs.db
