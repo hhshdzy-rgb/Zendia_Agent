@@ -3,6 +3,7 @@ import Header from '../components/Header'
 import DJWaveform from '../components/DJWaveform'
 import NowPlayingCard from '../components/NowPlayingCard'
 import MessageTimeline from '../components/MessageTimeline'
+import BottomMiniPlayer from '../components/BottomMiniPlayer'
 import { usePlayerStream } from '../hooks/usePlayerStream'
 import './Player.css'
 
@@ -100,6 +101,12 @@ export default function Player() {
         onTogglePlay={togglePlay}
       />
       <MessageTimeline messages={state.messages} />
+      <BottomMiniPlayer
+        positionSec={position}
+        paused={paused}
+        onTogglePlay={togglePlay}
+        analyser={analyser}
+      />
     </div>
   )
 }
