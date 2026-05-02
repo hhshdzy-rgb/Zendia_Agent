@@ -18,11 +18,33 @@ export default function Player() {
   const [duration, setDuration] = useState(0)
   const [now, setNow] = useState(() => Date.now())
   const [ttsHighlight, setTtsHighlight] = useState<{ id: string; wordIdx: number } | null>(null)
+  // Local state for the message whose TTS audio we are *currently playing*.
+  // Decoupled from the server's status='speaking' window because that window
+  // is shorter than the actual audio (server estimates 220ms/word, real Fish
+  // audio is typically ~30% longer for Chinese). If we tied playback to the
+  // server window the audio would get pause()'d mid-sentence.
+  const [playingTts, setPlayingTts] = useState<{
+    id: string
+    audioUrl: string
+    text: string
+  } | null>(null)
 
   const speakingMsg = useMemo(
     () => state.messages.find((m) => m.status === 'speaking' && m.audioUrl),
     [state.messages],
   )
+
+  // When a new server-side speaking message arrives, switch over.
+  // Otherwise let the current playback finish naturally.
+  useEffect(() => {
+    if (!speakingMsg?.audioUrl) return
+    if (playingTts?.id === speakingMsg.id) return
+    setPlayingTts({
+      id: speakingMsg.id,
+      audioUrl: speakingMsg.audioUrl,
+      text: speakingMsg.text,
+    })
+  }, [speakingMsg?.id, speakingMsg?.audioUrl, speakingMsg?.text, playingTts?.id])
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000)
@@ -64,22 +86,18 @@ export default function Player() {
     audio.play().catch((err) => console.warn('audio.play() after src swap rejected', err))
   }, [state.song.streamUrl])
 
-  // TTS: when there's a speaking message with audioUrl, play it and drive
-  // word highlighting from currentTime / duration / wordCount. Replaces
-  // the per-word events the server skips when audioUrl is present.
+  // TTS playback + word-sync. Driven by `playingTts` (local), NOT by the
+  // server's speaking-message window — so the audio plays to its natural
+  // end even if the server says message_done partway through.
   useEffect(() => {
     const tts = ttsAudioRef.current
-    if (!tts) return
-    if (!speakingMsg?.audioUrl) {
-      tts.pause()
-      setTtsHighlight(null)
-      return
+    if (!tts || !playingTts) return
+
+    if (tts.src !== playingTts.audioUrl) {
+      tts.src = playingTts.audioUrl
     }
-    if (tts.src !== speakingMsg.audioUrl) {
-      tts.src = speakingMsg.audioUrl
-    }
-    const wordCount = speakingMsg.text.split(/\s+/).filter(Boolean).length
-    const messageId = speakingMsg.id
+    const wordCount = playingTts.text.split(/\s+/).filter(Boolean).length
+    const { id: messageId } = playingTts
     const onTime = () => {
       const dur = tts.duration
       if (!isFinite(dur) || dur <= 0) return
@@ -87,7 +105,10 @@ export default function Player() {
       const wordIdx = Math.min(wordCount - 1, Math.floor(ratio * wordCount))
       setTtsHighlight({ id: messageId, wordIdx })
     }
-    const onEnded = () => setTtsHighlight(null)
+    const onEnded = () => {
+      setTtsHighlight(null)
+      setPlayingTts((p) => (p?.id === messageId ? null : p))
+    }
     tts.addEventListener('timeupdate', onTime)
     tts.addEventListener('ended', onEnded)
     // Logs both the autoplay-policy rejection (expected on first turn
@@ -98,15 +119,16 @@ export default function Player() {
       tts.removeEventListener('timeupdate', onTime)
       tts.removeEventListener('ended', onEnded)
     }
-  }, [speakingMsg?.id, speakingMsg?.audioUrl, speakingMsg?.text])
+  }, [playingTts])
 
-  // Music ducking: drop volume to 25% while DJ is talking, restore to 100%
-  // afterwards. Lets the voice cut through without pausing the song.
+  // Music ducking: drop volume while DJ audio is actually playing (keyed
+  // on `playingTts`, not the server status), so the song doesn't ramp
+  // back up while the voice is still mid-sentence.
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
-    audio.volume = speakingMsg ? 0.25 : 1.0
-  }, [speakingMsg])
+    audio.volume = playingTts ? 0.25 : 1.0
+  }, [playingTts])
 
   const ensureAudioGraph = () => {
     const audio = audioRef.current
