@@ -5,6 +5,7 @@ export type Song = {
   durationSec: number
   positionSec: number
   streamUrl?: string
+  id?: number
 }
 
 export type Message = {

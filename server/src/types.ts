@@ -8,6 +8,9 @@ export type Song = {
   durationSec: number
   positionSec: number
   streamUrl?: string
+  // Stable identity (e.g. NCM song id). Used for "is this the same song?"
+  // dedup so a fresh signed URL for the same track doesn't restart playback.
+  id?: number
 }
 
 export type Message = {

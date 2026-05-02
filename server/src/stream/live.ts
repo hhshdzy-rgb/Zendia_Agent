@@ -68,6 +68,7 @@ async function resolvePlayQueue(queries: string[]): Promise<Song | null> {
       }
       if (!url) continue
       return {
+        id: hit.id,
         title: hit.name,
         artist: hit.artists.join(', '),
         album: hit.album,
@@ -82,6 +83,10 @@ async function resolvePlayQueue(queries: string[]): Promise<Song | null> {
 
 export function startLiveDJ(hub: Hub): () => void {
   let stopped = false
+  // Last-emitted song identity. NCM signs URLs per-call so the same
+  // track gets a different streamUrl every resolve; if we re-emit, the
+  // frontend reloads audio from position 0. Dedup by stable id.
+  let lastSongId: number | undefined
   const timers = new Set<ReturnType<typeof setTimeout>>()
   const later = (ms: number, fn: () => void) => {
     const t = setTimeout(() => {
@@ -156,8 +161,11 @@ export function startLiveDJ(hub: Hub): () => void {
     }
 
     speakLine(reply, voice?.url, () => {
-      if (nextSong) {
+      if (nextSong && nextSong.id !== lastSongId) {
         hub.emit({ type: 'song', song: nextSong })
+        lastSongId = nextSong.id
+      } else if (nextSong) {
+        console.log(`[live] same song (${nextSong.id}) — skipping song event to avoid restart`)
       }
       const elapsed = Date.now() - turnStart
       const wait = Math.max(PAUSE_BETWEEN_MS, MIN_TURN_MS - elapsed)
