@@ -4,9 +4,14 @@ import type { Message } from '../types'
 
 type Props = {
   messages: Message[]
+  // When TTS audio is driving sync locally, the parent passes the live
+  // {messageId, wordIdx} here and we prefer it over the server's
+  // m.highlightWord (which is stale / not emitted at all when audioUrl
+  // is present).
+  highlightOverride?: { id: string; wordIdx: number } | null
 }
 
-export default function MessageTimeline({ messages }: Props) {
+export default function MessageTimeline({ messages, highlightOverride }: Props) {
   const sentinelRef = useRef<HTMLDivElement>(null)
   const lastSpeakingIdRef = useRef<string | null>(null)
   const speakingId = messages.find((m) => m.status === 'speaking')?.id ?? null
@@ -24,18 +29,24 @@ export default function MessageTimeline({ messages }: Props) {
 
   return (
     <div className="message-timeline">
-      {messages.map((m) => (
-        <article key={m.id} className={`message message-${m.status}`}>
-          <header className="message-meta">
-            <span className="message-author">Zendia</span>
-            <span className="message-dot">·</span>
-            <span className="message-ts mono">{formatTime(m.ts)}</span>
-          </header>
-          <p className="message-body">
-            {renderBody(m.text, m.status === 'speaking' ? m.highlightWord : undefined)}
-          </p>
-        </article>
-      ))}
+      {messages.map((m) => {
+        const useOverride = highlightOverride && highlightOverride.id === m.id
+        const highlightIdx = useOverride
+          ? highlightOverride.wordIdx
+          : m.status === 'speaking'
+            ? m.highlightWord
+            : undefined
+        return (
+          <article key={m.id} className={`message message-${m.status}`}>
+            <header className="message-meta">
+              <span className="message-author">Zendia</span>
+              <span className="message-dot">·</span>
+              <span className="message-ts mono">{formatTime(m.ts)}</span>
+            </header>
+            <p className="message-body">{renderBody(m.text, highlightIdx)}</p>
+          </article>
+        )
+      })}
       <div ref={sentinelRef} className="message-sentinel" aria-hidden="true" />
     </div>
   )

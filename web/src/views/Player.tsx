@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Header from '../components/Header'
 import DJWaveform from '../components/DJWaveform'
 import NowPlayingCard from '../components/NowPlayingCard'
@@ -10,12 +10,19 @@ import './Player.css'
 export default function Player() {
   const state = usePlayerStream()
   const audioRef = useRef<HTMLAudioElement>(null)
+  const ttsAudioRef = useRef<HTMLAudioElement>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null)
   const [paused, setPaused] = useState(true)
   const [position, setPosition] = useState(0)
   const [duration, setDuration] = useState(0)
   const [now, setNow] = useState(() => Date.now())
+  const [ttsHighlight, setTtsHighlight] = useState<{ id: string; wordIdx: number } | null>(null)
+
+  const speakingMsg = useMemo(
+    () => state.messages.find((m) => m.status === 'speaking' && m.audioUrl),
+    [state.messages],
+  )
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000)
@@ -56,6 +63,49 @@ export default function Player() {
     if (!audio || !audioCtxRef.current || !state.song.streamUrl) return
     audio.play().catch((err) => console.warn('audio.play() after src swap rejected', err))
   }, [state.song.streamUrl])
+
+  // TTS: when there's a speaking message with audioUrl, play it and drive
+  // word highlighting from currentTime / duration / wordCount. Replaces
+  // the per-word events the server skips when audioUrl is present.
+  useEffect(() => {
+    const tts = ttsAudioRef.current
+    if (!tts) return
+    if (!speakingMsg?.audioUrl) {
+      tts.pause()
+      setTtsHighlight(null)
+      return
+    }
+    if (tts.src !== speakingMsg.audioUrl) {
+      tts.src = speakingMsg.audioUrl
+    }
+    const wordCount = speakingMsg.text.split(/\s+/).filter(Boolean).length
+    const messageId = speakingMsg.id
+    const onTime = () => {
+      const dur = tts.duration
+      if (!isFinite(dur) || dur <= 0) return
+      const ratio = Math.min(1, tts.currentTime / dur)
+      const wordIdx = Math.min(wordCount - 1, Math.floor(ratio * wordCount))
+      setTtsHighlight({ id: messageId, wordIdx })
+    }
+    const onEnded = () => setTtsHighlight(null)
+    tts.addEventListener('timeupdate', onTime)
+    tts.addEventListener('ended', onEnded)
+    // Will silently reject if the user hasn't tapped play yet (autoplay
+    // policy); subsequent turns will play once the gesture has happened.
+    tts.play().catch(() => {})
+    return () => {
+      tts.removeEventListener('timeupdate', onTime)
+      tts.removeEventListener('ended', onEnded)
+    }
+  }, [speakingMsg?.id, speakingMsg?.audioUrl, speakingMsg?.text])
+
+  // Music ducking: drop volume to 25% while DJ is talking, restore to 100%
+  // afterwards. Lets the voice cut through without pausing the song.
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    audio.volume = speakingMsg ? 0.25 : 1.0
+  }, [speakingMsg])
 
   const ensureAudioGraph = () => {
     const audio = audioRef.current
@@ -103,6 +153,7 @@ export default function Player() {
         preload="auto"
         crossOrigin="anonymous"
       />
+      <audio ref={ttsAudioRef} preload="auto" />
       <Header speaking={state.speaking} sessionElapsedSec={elapsed} />
       <DJWaveform speaking={state.speaking} analyser={analyser} />
       <NowPlayingCard
@@ -110,7 +161,7 @@ export default function Player() {
         paused={paused}
         onTogglePlay={togglePlay}
       />
-      <MessageTimeline messages={state.messages} />
+      <MessageTimeline messages={state.messages} highlightOverride={ttsHighlight} />
       <BottomMiniPlayer
         positionSec={position}
         paused={paused}
