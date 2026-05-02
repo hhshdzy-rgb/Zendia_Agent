@@ -147,7 +147,14 @@ export function createWebSocketStream(url: string): EventStream {
     ws.onerror = () => ws?.close()
   }
 
-  connect()
+  // Defer the actual connect() so a synchronous mount→cleanup pair
+  // (React StrictMode in dev) cancels the timer before any socket is
+  // created, instead of opening then immediately closing one (which
+  // logs "WebSocket closed before established" in the proxy).
+  let initialTimer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+    initialTimer = null
+    connect()
+  }, 50)
 
   return {
     subscribe: (h) => {
@@ -158,6 +165,7 @@ export function createWebSocketStream(url: string): EventStream {
     },
     close: () => {
       closed = true
+      if (initialTimer) clearTimeout(initialTimer)
       if (reconnectTimer) clearTimeout(reconnectTimer)
       ws?.close()
       handlers.clear()
