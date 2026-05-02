@@ -15,9 +15,10 @@ export function usePlayerStream(): PlayerState {
   const [state, setState] = useState<PlayerState>(INITIAL)
 
   useEffect(() => {
+    const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws'
     const stream = USE_MOCK
       ? createMockStream()
-      : createWebSocketStream(`ws://${window.location.hostname}:8080/stream`)
+      : createWebSocketStream(`${wsProto}://${window.location.host}/stream`)
 
     const unsubscribe = stream.subscribe((e) => {
       setState((prev) => reduce(prev, e))
