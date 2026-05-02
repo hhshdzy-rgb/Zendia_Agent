@@ -1,9 +1,11 @@
 import type { WebSocket } from 'ws'
+import { messagesRepo } from './db.js'
 import type { Message, ServerEvent, Song } from './types.js'
 
 // Single shared broadcaster. State is the union of the most recent
 // "snapshot-worthy" events (song, speaking, recent messages); when a new
 // client connects, we replay this snapshot before forwarding live events.
+// Messages are persisted in SQLite so a restart keeps the timeline intact.
 
 const HISTORY_LIMIT = 20
 
@@ -11,7 +13,7 @@ export class Hub {
   readonly sessionStartedAt = Date.now()
   private song: Song | null = null
   private speaking = false
-  private messages: Message[] = []
+  private messages: Message[] = messagesRepo.recent(HISTORY_LIMIT)
   private clients = new Set<WebSocket>()
 
   emit(event: ServerEvent): void {
@@ -67,12 +69,14 @@ export class Hub {
         if (this.messages.length > HISTORY_LIMIT) {
           this.messages.splice(0, this.messages.length - HISTORY_LIMIT)
         }
+        messagesRepo.insert(event.message)
         return
       }
       case 'message_word': {
         const idx = this.messages.findIndex((m) => m.id === event.id)
         if (idx >= 0) {
           this.messages[idx] = { ...this.messages[idx]!, highlightWord: event.wordIdx }
+          messagesRepo.updateWord(event.id, event.wordIdx)
         }
         return
       }
@@ -80,6 +84,7 @@ export class Hub {
         const idx = this.messages.findIndex((m) => m.id === event.id)
         if (idx >= 0) {
           this.messages[idx] = { ...this.messages[idx]!, status: 'done', highlightWord: undefined }
+          messagesRepo.markDone(event.id)
         }
         return
       }
