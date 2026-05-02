@@ -21,6 +21,12 @@ const PER_WORD_MS = 220
 const PAUSE_BETWEEN_MS = Number(process.env.ZENDIA_DJ_PAUSE_MS ?? 5000)
 const MIN_TURN_MS = Number(process.env.ZENDIA_DJ_MIN_TURN_MS ?? 8000)
 const CLAUDE_TIMEOUT_MS = 30_000
+// Don't actually swap the song more than this often, no matter what the
+// model recommends. Real radio plays a track to completion (3-5 min) and
+// then segues; without a cooldown the DJ would yank the song every 15-20s.
+// TODO: replace with "wait for audio.ended from a connected client" once
+// the frontend telegraphs that back over WS.
+const MIN_SONG_INTERVAL_MS = Number(process.env.ZENDIA_SONG_INTERVAL_MS ?? 180_000)
 
 // Fallback when NCM can't resolve any of the model's play[] entries
 // (region-locked, VIP-only, or the model invented a song that doesn't
@@ -87,6 +93,8 @@ export function startLiveDJ(hub: Hub): () => void {
   // track gets a different streamUrl every resolve; if we re-emit, the
   // frontend reloads audio from position 0. Dedup by stable id.
   let lastSongId: number | undefined
+  // When did we last actually swap the song? Cooldown gate below.
+  let lastSongChangeAt = 0
   const timers = new Set<ReturnType<typeof setTimeout>>()
   const later = (ms: number, fn: () => void) => {
     const t = setTimeout(() => {
@@ -161,11 +169,21 @@ export function startLiveDJ(hub: Hub): () => void {
     }
 
     speakLine(reply, voice?.url, () => {
-      if (nextSong && nextSong.id !== lastSongId) {
-        hub.emit({ type: 'song', song: nextSong })
-        lastSongId = nextSong.id
-      } else if (nextSong) {
-        console.log(`[live] same song (${nextSong.id}) — skipping song event to avoid restart`)
+      if (nextSong) {
+        const sameSong = nextSong.id === lastSongId
+        const sinceLastSwap = Date.now() - lastSongChangeAt
+        const cooldownLeft = MIN_SONG_INTERVAL_MS - sinceLastSwap
+        if (sameSong) {
+          console.log(`[live] same song (${nextSong.id}) — skipping song event to avoid restart`)
+        } else if (cooldownLeft > 0 && lastSongChangeAt > 0) {
+          console.log(
+            `[live] cooldown ${Math.round(cooldownLeft / 1000)}s — keep current song, ignoring "${nextSong.title}"`,
+          )
+        } else {
+          hub.emit({ type: 'song', song: nextSong })
+          lastSongId = nextSong.id
+          lastSongChangeAt = Date.now()
+        }
       }
       const elapsed = Date.now() - turnStart
       const wait = Math.max(PAUSE_BETWEEN_MS, MIN_TURN_MS - elapsed)
