@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./docs/logo.svg" alt="Zendia logo — tangerine Z" width="80" height="80">
+</p>
+
 # Zendia
 
 > English · [中文](./README.zh.md)

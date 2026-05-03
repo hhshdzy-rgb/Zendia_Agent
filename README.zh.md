@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./docs/logo.svg" alt="Zendia logo — 橘色 Z" width="80" height="80">
+</p>
+
 # Zendia
 
 > 中文 · [English](./README.md)
@@ -137,7 +141,6 @@ OPENAI_MODEL=deepseek-chat
 | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` |
 | 通义千问 (Qwen) | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` |
 | Moonshot (Kimi) | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` |
-| Ollama(本地) | `http://localhost:11434/v1` | `llama3.1`(任意拉过的模型) |
 | OpenAI | `https://api.openai.com/v1` | `gpt-4o-mini` |
 
 切完跑 `cd server && npm run llm:smoke`,看到 `[llm smoke] text:` 后面有
