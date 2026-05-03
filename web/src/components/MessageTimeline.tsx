@@ -7,9 +7,12 @@ type Props = {
   // Local playback override keeps the highlighted word aligned with the
   // audio element, even if the server has already marked the message done.
   playingOverride?: { id: string; wordIdx: number } | null
+  /** Re-play a DJ message's cached TTS audio. Only DJ messages with
+      audioUrl render a Replay button. */
+  onReplay?: (m: Message) => void
 }
 
-export default function MessageTimeline({ messages, playingOverride }: Props) {
+export default function MessageTimeline({ messages, playingOverride, onReplay }: Props) {
   const sentinelRef = useRef<HTMLDivElement>(null)
   const lastSpeakingIdRef = useRef<string | null>(null)
   const speakingId =
@@ -50,6 +53,18 @@ export default function MessageTimeline({ messages, playingOverride }: Props) {
                 <span className="message-author">{author}</span>
                 <span className="message-dot">/</span>
                 <span className="message-ts mono">{formatTime(m.ts)}</span>
+                {!isUser && m.audioUrl && onReplay && (
+                  <button
+                    type="button"
+                    className="message-replay pixel"
+                    onClick={() => onReplay(m)}
+                    aria-label="Replay this message"
+                    title="Replay"
+                  >
+                    <ReplayIcon />
+                    REPLAY
+                  </button>
+                )}
               </header>
               <p className="message-body">{renderBody(m.text, highlightIdx)}</p>
             </div>
@@ -58,6 +73,20 @@ export default function MessageTimeline({ messages, playingOverride }: Props) {
       })}
       <div ref={sentinelRef} className="message-sentinel" aria-hidden="true" />
     </div>
+  )
+}
+
+function ReplayIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="11"
+      height="11"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M7 4.5v15l13-7.5z" />
+    </svg>
   )
 }
 

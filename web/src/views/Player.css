@@ -428,6 +428,30 @@
   color: #6b6b6b;
 }
 
+.message-replay {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: #4a4a4a;
+  background: transparent;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: color 120ms ease, background 120ms ease;
+  cursor: pointer;
+}
+
+.message-replay:hover {
+  color: #08060d;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.message-replay:active {
+  transform: scale(0.95);
+}
+
 .message-body {
   margin: 0;
   font-size: 15px;

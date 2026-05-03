@@ -299,6 +299,16 @@ export default function Player() {
     })
   }
 
+  const replayMessage = (msg: typeof state.messages[number]) => {
+    if (!msg.audioUrl) return
+    setPlayingTts({
+      id: msg.id,
+      audioUrl: msg.audioUrl,
+      text: msg.text,
+      wordTimings: msg.wordTimings,
+    })
+  }
+
   const sendChat = (text: string) => {
     // Immediate "I heard you" feedback: stop the current DJ utterance
     // (audio + highlight) the moment we send. Server-side dj_thinking
@@ -341,7 +351,11 @@ export default function Player() {
         onToggleLike={toggleLike}
         onDislike={dislikeCurrent}
       />
-      <MessageTimeline messages={state.messages} playingOverride={ttsHighlight} />
+      <MessageTimeline
+        messages={state.messages}
+        playingOverride={ttsHighlight}
+        onReplay={replayMessage}
+      />
       <div className="player-footer">
         <ChatInput onSend={sendChat} />
         <BottomMiniPlayer
