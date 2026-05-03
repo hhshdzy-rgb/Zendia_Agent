@@ -127,6 +127,36 @@
   font-family: var(--mono);
 }
 
+/* ---------- Clock hero ---------- */
+.clock-hero {
+  text-align: center;
+  padding: 4px 16px 18px;
+  font-family: var(--pixel);
+  color: var(--text);
+  user-select: none;
+}
+
+.clock-time {
+  font-size: 84px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 16px rgba(255, 255, 255, 0.05);
+}
+
+.clock-day {
+  margin-top: 8px;
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.clock-date {
+  margin-top: 2px;
+  font-size: 14px;
+  letter-spacing: 0.18em;
+  color: var(--text-faint);
+}
+
 /* ---------- DJ waveform ---------- */
 .dj-waveform {
   display: flex;

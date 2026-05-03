@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Header from '../components/Header'
+import ClockHero from '../components/ClockHero'
 import DJWaveform from '../components/DJWaveform'
 import NowPlayingCard from '../components/NowPlayingCard'
 import MessageTimeline from '../components/MessageTimeline'
@@ -327,6 +328,7 @@ export default function Player() {
       />
       <audio ref={ttsAudioRef} preload="auto" />
       <Header speaking={state.speaking} thinking={state.thinking} />
+      <ClockHero />
       <DJWaveform speaking={state.speaking || Boolean(playingTts)} analyser={ttsAnalyser} />
       <NowPlayingCard
         song={songWithLiveTime}
