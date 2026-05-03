@@ -104,10 +104,40 @@ npm start
 Auto-start on Mac boot (so you don't have to keep a terminal open) is a
 follow-up step using `launchd`; not yet scripted here.
 
+## LLM provider
+
+The DJ brain is pluggable. Pick the backend with `ZENDIA_LLM` in `server/.env`:
+
+- `claude-cli` (default) — talks to the locally installed `claude` CLI.
+  Best quality, but needs you to be able to run Claude Code on this machine.
+- `openai` — any service that speaks the OpenAI `/chat/completions` shape.
+  Good escape hatch when Claude isn't reachable: works with **DeepSeek**,
+  **通义千问 (Qwen)**, **Moonshot (Kimi)**, **Ollama** (local), or OpenAI itself.
+
+For the openai provider, also set `OPENAI_BASE_URL`, `OPENAI_API_KEY`,
+`OPENAI_MODEL`. `server/.env.example` lists the common base URLs.
+
+```bash
+# example: DeepSeek
+ZENDIA_LLM=openai
+OPENAI_BASE_URL=https://api.deepseek.com/v1
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=deepseek-chat
+```
+
+Smoke-test the selected provider end-to-end:
+
+```bash
+cd server && npm run llm:smoke
+```
+
 ## Environment
 
 Copy `server/.env.example` to `server/.env` and fill in local secrets:
 
+- `ZENDIA_LLM`: which LLM backend to run (`claude-cli` default, or `openai`).
+- `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `OPENAI_MODEL`: only when
+  `ZENDIA_LLM=openai`.
 - `NCM_COOKIE`: optional but recommended for NetEase Cloud Music tracks that
   require login.
 - `FISH_API_KEY`: required for DJ voice synthesis.

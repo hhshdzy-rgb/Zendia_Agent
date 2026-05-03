@@ -27,6 +27,7 @@ Zendia 拆成两个 app:
   → WebSocket 把 message / song 事件推给 PWA
 ```
 
+
 ## 开发模式(两个终端)
 
 ```bash
@@ -114,6 +115,34 @@ npm start
 让 Mac 开机自启(不用一直开终端) — 用 `launchd` plist,
 后续会写一个模板放在 `deploy/` 下。
 
+## 换 LLM 后端(国内用户必看)
+
+DJ 大脑是可插拔的,默认走本机的 `claude` CLI。如果你装不了 / 用不了
+Claude Code,可以切到任意 OpenAI 兼容的 API,把 DeepSeek / 通义千问 /
+Kimi / 本地 Ollama 当 DJ 大脑用。
+
+在 `server/.env` 里设:
+
+```bash
+ZENDIA_LLM=openai
+OPENAI_BASE_URL=https://api.deepseek.com/v1   # DeepSeek 示例
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=deepseek-chat
+```
+
+常见 base URL + model:
+
+| 服务 | `OPENAI_BASE_URL` | `OPENAI_MODEL` |
+|---|---|---|
+| DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` |
+| 通义千问 (Qwen) | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` |
+| Moonshot (Kimi) | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` |
+| Ollama(本地) | `http://localhost:11434/v1` | `llama3.1`(任意拉过的模型) |
+| OpenAI | `https://api.openai.com/v1` | `gpt-4o-mini` |
+
+切完跑 `cd server && npm run llm:smoke`,看到 `[llm smoke] text:` 后面有
+JSON 输出就说明这条链路通了。
+
 ## 环境变量
 
 复制 `server/.env.example` 到 `server/.env`,填本地 secrets。
@@ -121,6 +150,10 @@ npm start
 
 | 变量 | 必填 | 说明 |
 |---|---|---|
+| `ZENDIA_LLM` | 可选 | DJ 大脑后端。`claude-cli`(默认)或 `openai` |
+| `OPENAI_BASE_URL` | `openai` 时必填 | OpenAI 兼容 endpoint(见上表) |
+| `OPENAI_API_KEY` | `openai` 时必填 | 对应平台的 API key |
+| `OPENAI_MODEL` | `openai` 时必填 | 对应平台的模型名 |
 | `NCM_COOKIE` | 推荐 | 网易云的 `MUSIC_U` cookie。没 cookie 大量主流华语歌(VIP 锁)放不出 |
 | `FISH_API_KEY` | 必填 | Fish Audio API key,DJ 声音合成需要 |
 | `FISH_VOICE_ID_ZH` | 可选 | 中文 DJ 用的 voice id |
