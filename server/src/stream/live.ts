@@ -91,6 +91,12 @@ export function startLiveDJ(hub: Hub): () => void {
   let skipIntroInFlight = false
   let fastSkipInFlight = false
   let fastSkipCursor = 0
+  // Latest unanswered user chat. Set by onUserMessage; consumed by the next
+  // generateTurn (and immediately cleared so we don't keep replying to it).
+  // Multiple messages arriving while a turn is in flight collapse to the
+  // most recent — earlier ones still appear in the timeline but only the
+  // last gets a dedicated DJ reply.
+  let pendingUserMessage: string | null = null
   let nextTurnTimer: ReturnType<typeof setTimeout> | null = null
   const timers = new Set<ReturnType<typeof setTimeout>>()
 
@@ -124,12 +130,28 @@ export function startLiveDJ(hub: Hub): () => void {
     scheduleNextTurn(0)
   })
 
+  const unsubscribeUserMessage = hub.onUserMessage((text) => {
+    pendingUserMessage = text
+    if (turnInFlight) {
+      runImmediatelyAfterTurn = true
+      console.log(`[live] user message during turn; queued reply: ${JSON.stringify(text.slice(0, 60))}`)
+    } else {
+      console.log(`[live] user message; triggering reply turn: ${JSON.stringify(text.slice(0, 60))}`)
+      scheduleNextTurn(0)
+    }
+  })
+
   hub.emit({ type: 'song', song: FALLBACK_SONG })
 
   const generateTurn = async () => {
     if (stopped || turnInFlight) return
     turnInFlight = true
     const turnStart = Date.now()
+
+    // Consume any pending user message — if present, this turn becomes
+    // a direct reply (mode = 'reply') instead of a normal broadcast turn.
+    const userMessage = pendingUserMessage
+    pendingUserMessage = null
 
     const ctx = buildContext({
       environment: {
@@ -141,10 +163,19 @@ export function startLiveDJ(hub: Hub): () => void {
     const songEnded = hub.isCurrentSongEnded()
     const handoffReason = hub.getHandoffReason()
     const isFirstSong = lastSongChangeAt === 0
-    const mode: 'intro' | 'mid-song' = songEnded || isFirstSong ? 'intro' : 'mid-song'
-    const directive = buildDjDirective(currentSong ? { nowPlaying: currentSong, mode } : { mode })
-    const userInput =
-      handoffReason === 'skip'
+    const mode: 'intro' | 'mid-song' | 'reply' = userMessage
+      ? 'reply'
+      : songEnded || isFirstSong
+        ? 'intro'
+        : 'mid-song'
+    const directive = buildDjDirective({
+      ...(currentSong ? { nowPlaying: currentSong } : {}),
+      mode,
+      ...(userMessage ? { userMessage } : {}),
+    })
+    const userInput = userMessage
+      ? `The listener just said: "${userMessage}"`
+      : handoffReason === 'skip'
         ? 'The listener just skipped the current song. Pick a different new track now; do not keep commenting on the skipped track.'
         : undefined
 
@@ -203,10 +234,13 @@ export function startLiveDJ(hub: Hub): () => void {
       console.log(`[live] tts ${voice.cached ? 'cached' : 'fresh'} ${voice.bytes}B -> ${voice.url}`)
     }
 
-    const startedAtIntro = tryStartNextSong(nextSong, 'intro')
+    // In reply mode, the listener explicitly asked — bypass cooldown +
+    // song-still-playing gates so their request lands immediately.
+    const forceSwap = mode === 'reply' && !!nextSong
+    const startedAtIntro = tryStartNextSong(nextSong, mode === 'reply' ? 'reply' : 'intro', forceSwap)
 
     speakLine(reply, voice?.url, voice?.wordTimings, () => {
-      if (!startedAtIntro) tryStartNextSong(nextSong, 'post-speech')
+      if (!startedAtIntro) tryStartNextSong(nextSong, 'post-speech', forceSwap)
       turnInFlight = false
       if (runImmediatelyAfterTurn && !startedAtIntro) {
         runImmediatelyAfterTurn = false
@@ -304,7 +338,11 @@ export function startLiveDJ(hub: Hub): () => void {
     })
   }
 
-  function tryStartNextSong(nextSong: Song | null, phase: 'intro' | 'post-speech' | 'skip') {
+  function tryStartNextSong(
+    nextSong: Song | null,
+    phase: 'intro' | 'post-speech' | 'skip' | 'reply',
+    force = false,
+  ) {
     if (!nextSong) return false
 
     const sameSong = nextSong.id === lastSongId
@@ -317,13 +355,13 @@ export function startLiveDJ(hub: Hub): () => void {
       console.log(`[live] same song (${nextSong.id}); skipping song event to avoid restart`)
       return false
     }
-    if (!songEndedNow && !isFirstSong) {
+    if (!force && !songEndedNow && !isFirstSong) {
       console.log(
         `[live] song still playing; keep "${currentSong?.title}", ignoring "${nextSong.title}" until client signals song_ended`,
       )
       return false
     }
-    if (!songEndedNow && cooldownLeft > 0 && !isFirstSong) {
+    if (!force && !songEndedNow && cooldownLeft > 0 && !isFirstSong) {
       console.log(`[live] safety cooldown ${Math.round(cooldownLeft / 1000)}s; holding "${nextSong.title}"`)
       return false
     }
@@ -332,7 +370,8 @@ export function startLiveDJ(hub: Hub): () => void {
     lastSongId = nextSong.id
     lastSongChangeAt = Date.now()
     currentSong = { title: nextSong.title, artist: nextSong.artist }
-    console.log(`[live] started next song during ${phase}: ${nextSong.title} - ${nextSong.artist}`)
+    const tag = force ? `forced ${phase}` : phase
+    console.log(`[live] started next song during ${tag}: ${nextSong.title} - ${nextSong.artist}`)
     return true
   }
 
@@ -385,5 +424,6 @@ export function startLiveDJ(hub: Hub): () => void {
     timers.forEach((t) => clearTimeout(t))
     timers.clear()
     unsubscribeSongEnded()
+    unsubscribeUserMessage()
   }
 }

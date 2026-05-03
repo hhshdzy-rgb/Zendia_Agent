@@ -39,7 +39,9 @@ export function parseDjReply(text: string): DjReply | null {
 export function buildDjDirective(
   opts: {
     nowPlaying?: { title: string; artist: string }
-    mode?: 'intro' | 'mid-song' | 'auto'
+    mode?: 'intro' | 'mid-song' | 'reply' | 'auto'
+    /** Required when mode = 'reply'; the listener's message to address. */
+    userMessage?: string
   } = {},
 ): string {
   const lines: string[] = ['Generate the next DJ segment.']
@@ -57,37 +59,53 @@ export function buildDjDirective(
     )
   }
 
-  lines.push(
-    '',
-    'Produce a tight radio segment that fits inside a song intro: about 10-15 seconds of speech, 30-50 words, 2-3 sentences.',
-    'Compact structure:',
-    '1. Context: who, when, what scene, in one short clause.',
-    '2. Feeling or theme: what the song carries.',
-    '3. Hand-off: a clean exit into the track.',
-  )
-
-  if (mode === 'intro') {
-    lines.push('', 'Intro mode: queue a new song in play[] and introduce it.')
-  } else if (mode === 'mid-song') {
-    lines.push('', 'Mid-song mode: leave play empty and deepen the current track.')
+  if (mode === 'reply') {
+    // Reply turns get their own structure — the listener interrupted, so
+    // drop the radio-segment template and respond directly to them.
+    lines.push(
+      '',
+      `THE LISTENER JUST SAID: "${opts.userMessage ?? ''}"`,
+      '',
+      'Reply directly to them. ONE acknowledging line + one short follow-up. Maximum 25 words total. No "great question" / "thanks for sharing" / "love that vibe" — speak like a friend they texted, not like a call-in show.',
+      '',
+      'If they asked for a song or a vibe, put a search query in play[] and the next track will swap immediately. If they just made a comment, leave play empty.',
+      '',
+      'Do not continue your previous monologue. Address THEM.',
+    )
   } else {
     lines.push(
       '',
-      'Choose intro mode, with a new song in play[], or mid-song mode, with play empty, based on the moment.',
+      'Produce a tight radio segment that fits inside a song intro: about 10-15 seconds of speech, 30-50 words, 2-3 sentences.',
+      'Compact structure:',
+      '1. Context: who, when, what scene, in one short clause.',
+      '2. Feeling or theme: what the song carries.',
+      '3. Hand-off: a clean exit into the track.',
     )
+
+    if (mode === 'intro') {
+      lines.push('', 'Intro mode: queue a new song in play[] and introduce it.')
+    } else if (mode === 'mid-song') {
+      lines.push('', 'Mid-song mode: leave play empty and deepen the current track.')
+    } else {
+      lines.push(
+        '',
+        'Choose intro mode, with a new song in play[], or mid-song mode, with play empty, based on the moment.',
+      )
+    }
   }
 
   lines.push(
     '',
-    "Match the song's language. Chinese song: Chinese DJ. English song: English DJ.",
+    "Match the listener's / song's language. Chinese in → Chinese out. English in → English out.",
     '',
     'Reply with only a single JSON object. Start with { and end with }.',
     'No prose, no markdown fences, and no quotes around the whole reply.',
     '',
     'Required keys: say (string), play (string[]), reason (string), segue (string, empty string if none).',
     '',
-    'Valid example:',
-    '{"say":"It is late on a Monday, and this one moves like a slow breath after a long day. David Gates keeps the guitar close and lets the melody do the leaning. Let it open the room a little.","play":["Bread If"],"reason":"Soft late-night pacing; acoustic, warm, and familiar.","segue":""}',
+    mode === 'reply'
+      ? 'Valid reply-mode example:\n{"say":"陈奕迅来了。先放一首《十年》,看你听完什么感觉。","play":["十年 陈奕迅"],"reason":"User asked for Eason; pick the canonical track","segue":""}'
+      : 'Valid example:\n{"say":"It is late on a Monday, and this one moves like a slow breath after a long day. David Gates keeps the guitar close and lets the melody do the leaning. Let it open the room a little.","play":["Bread If"],"reason":"Soft late-night pacing; acoustic, warm, and familiar.","segue":""}',
   )
 
   return lines.join('\n')
