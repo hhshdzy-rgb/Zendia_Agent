@@ -2,18 +2,24 @@ import { Link } from 'react-router-dom'
 
 type Props = {
   speaking: boolean
+  thinking?: boolean
 }
 
-export default function Header({ speaking }: Props) {
+export default function Header({ speaking, thinking = false }: Props) {
+  // speaking takes precedence — once the DJ actually starts talking the
+  // "thinking" indicator is irrelevant.
+  const label = speaking ? 'Speaking…' : thinking ? 'Thinking…' : 'Idle'
+  const stateClass = speaking ? 'is-speaking' : thinking ? 'is-thinking' : ''
+
   return (
     <header className="player-header">
       <div className="player-header-left">
         <Link to="/profile" className="avatar" aria-label="Open profile" />
         <div className="player-header-text">
           <div className="brand">Zendia</div>
-          <div className={`status ${speaking ? 'is-speaking' : ''}`}>
+          <div className={`status ${stateClass}`}>
             <span className="status-dot" />
-            {speaking ? 'Speaking…' : 'Idle'}
+            {label}
           </div>
         </div>
       </div>

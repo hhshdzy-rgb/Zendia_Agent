@@ -36,6 +36,10 @@ export type ServerEvent =
   | { type: 'song'; song: Song }
   | { type: 'song_progress'; positionSec: number }
   | { type: 'tts_state'; state: 'speaking' | 'idle' }
+  // True the moment a user_message lands; false once the reply turn
+  // emits tts_state='speaking' (or fails). Lets the UI show a
+  // "thinking" indicator instead of leaving the listener wondering.
+  | { type: 'dj_thinking'; on: boolean }
   | { type: 'message_new'; message: Message }
   | { type: 'message_word'; id: string; wordIdx: number }
   | { type: 'message_done'; id: string }

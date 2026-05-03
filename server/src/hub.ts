@@ -18,6 +18,7 @@ export class Hub {
   // because it ended naturally or because the user skipped it.
   private currentSongEnded = false
   private handoffReason: 'ended' | 'skip' | null = null
+  private thinking = false
   private songEndedListeners = new Set<() => void>()
   private userMessageListeners = new Set<(text: string) => void>()
   // Trim absurdly long inputs so a single user can't blow up token budget
@@ -77,6 +78,9 @@ export class Hub {
         // Reuse the message_new path so the broadcast + dedup + DB insert
         // logic stays in one place.
         this.emit({ type: 'message_new', message })
+        // Light up the "thinking…" indicator immediately. The reply turn
+        // will clear it when it emits tts_state='speaking' (or fails).
+        this.emit({ type: 'dj_thinking', on: true })
         this.userMessageListeners.forEach((fn) => fn(truncated))
         return
       }
@@ -119,6 +123,7 @@ export class Hub {
       send({ type: 'message_new', message })
     }
     send({ type: 'tts_state', state: this.speaking ? 'speaking' : 'idle' })
+    if (this.thinking) send({ type: 'dj_thinking', on: true })
   }
 
   private apply(event: ServerEvent): void {
@@ -133,6 +138,12 @@ export class Hub {
         return
       case 'tts_state':
         this.speaking = event.state === 'speaking'
+        // Once the DJ actually starts speaking, the thinking spinner
+        // should drop. Same for explicit idle (failed reply, etc.).
+        if (this.thinking) this.thinking = false
+        return
+      case 'dj_thinking':
+        this.thinking = event.on
         return
       case 'message_new': {
         if (this.messages.some((m) => m.id === event.message.id)) return

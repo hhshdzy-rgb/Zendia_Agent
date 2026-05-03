@@ -233,6 +233,17 @@ export default function Player() {
   }
 
   const sendChat = (text: string) => {
+    // Immediate "I heard you" feedback: stop the current DJ utterance
+    // (audio + highlight) the moment we send. Server-side dj_thinking
+    // event will fire when the message lands; the next reply turn will
+    // then play through normally.
+    const tts = ttsAudioRef.current
+    if (tts) {
+      tts.pause()
+      tts.currentTime = 0
+    }
+    setPlayingTts(null)
+    setTtsHighlight(null)
     send({ type: 'user_message', text, clientMsgId: crypto.randomUUID() })
   }
 
@@ -251,7 +262,7 @@ export default function Player() {
         crossOrigin="anonymous"
       />
       <audio ref={ttsAudioRef} preload="auto" />
-      <Header speaking={state.speaking} />
+      <Header speaking={state.speaking} thinking={state.thinking} />
       <DJWaveform speaking={state.speaking || Boolean(playingTts)} analyser={ttsAnalyser} />
       <NowPlayingCard
         song={songWithLiveTime}

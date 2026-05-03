@@ -5,6 +5,7 @@ import type { ClientEvent, PlayerState } from '../types'
 const INITIAL: PlayerState = {
   sessionStartedAt: Date.now(),
   speaking: false,
+  thinking: false,
   song: { title: '', artist: '', album: '', durationSec: 0, positionSec: 0 },
   messages: [],
 }
@@ -55,7 +56,11 @@ function reduce(state: PlayerState, e: ServerEvent): PlayerState {
     case 'song_progress':
       return { ...state, song: { ...state.song, positionSec: e.positionSec } }
     case 'tts_state':
-      return { ...state, speaking: e.state === 'speaking' }
+      // tts_state always supersedes any pending "thinking" — by the time
+      // the DJ is speaking (or fully idle) the spinner should be gone.
+      return { ...state, speaking: e.state === 'speaking', thinking: false }
+    case 'dj_thinking':
+      return { ...state, thinking: e.on }
     case 'message_new':
       if (state.messages.some((m) => m.id === e.message.id)) return state
       return { ...state, messages: [...state.messages, e.message] }

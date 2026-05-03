@@ -35,6 +35,9 @@ export type ClientEvent =
 export type PlayerState = {
   sessionStartedAt: number
   speaking: boolean
+  // True between "user_message arrived" and "DJ reply audio starts".
+  // Frontend uses it for a "thinking…" indicator while Claude generates.
+  thinking: boolean
   song: Song
   messages: Message[]
 }

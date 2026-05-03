@@ -230,6 +230,9 @@ export function startLiveDJ(hub: Hub): () => void {
     if (stopped) return
     if (!reply) {
       turnInFlight = false
+      // If this was a reply turn (user message in flight), drop the
+      // "thinking…" indicator so the UI doesn't hang on it.
+      if (mode === 'reply') hub.emit({ type: 'dj_thinking', on: false })
       scheduleNextTurn(MIN_TURN_MS)
       return
     }

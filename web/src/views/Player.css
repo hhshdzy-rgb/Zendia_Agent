@@ -71,9 +71,24 @@
   animation: pulse 1.4s ease-in-out infinite;
 }
 
+.status.is-thinking {
+  color: #d4a843;
+}
+
+.status.is-thinking .status-dot {
+  background: #d4a843;
+  box-shadow: 0 0 6px #d4a843;
+  animation: thinking-blink 1s ease-in-out infinite;
+}
+
 @keyframes pulse {
   0%,
   100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes thinking-blink {
+  0%, 100% { opacity: 0.35; }
   50% { opacity: 1; }
 }
 

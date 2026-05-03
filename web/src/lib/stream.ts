@@ -5,6 +5,7 @@ export type ServerEvent =
   | { type: 'song'; song: Song }
   | { type: 'song_progress'; positionSec: number }
   | { type: 'tts_state'; state: 'speaking' | 'idle' }
+  | { type: 'dj_thinking'; on: boolean }
   | { type: 'message_new'; message: Message }
   | { type: 'message_word'; id: string; wordIdx: number }
   | { type: 'message_done'; id: string }
