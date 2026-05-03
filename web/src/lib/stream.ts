@@ -13,6 +13,9 @@ export type ServerEvent =
 export type EventStream = {
   subscribe: (handler: (e: ServerEvent) => void) => () => void
   send: (event: ClientEvent) => void
+  /** Called with true on WS open, false on close/error. Mock impl
+      treats itself as always connected and only calls once. */
+  onConnectionChange: (handler: (connected: boolean) => void) => () => void
   close: () => void
 }
 
@@ -106,6 +109,11 @@ export function createMockStream(): EventStream {
     send: () => {
       // Mock has no server to talk to; drop client events on the floor.
     },
+    onConnectionChange: (handler) => {
+      // Mock is always "connected" — fire once and never again.
+      handler(true)
+      return () => {}
+    },
     close: () => {
       handlers.clear()
       timers.forEach((t) => clearTimeout(t))
@@ -116,16 +124,26 @@ export function createMockStream(): EventStream {
 
 export function createWebSocketStream(url: string): EventStream {
   const handlers = new Set<(e: ServerEvent) => void>()
+  const connectionHandlers = new Set<(connected: boolean) => void>()
   let ws: WebSocket | null = null
   let closed = false
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
   let backoff = 500
+  let lastConnectedNotified: boolean | null = null
+
+  const notifyConnected = (connected: boolean) => {
+    // De-dup so rapid reconnect storms don't spam the UI.
+    if (lastConnectedNotified === connected) return
+    lastConnectedNotified = connected
+    connectionHandlers.forEach((h) => h(connected))
+  }
 
   const connect = () => {
     if (closed) return
     ws = new WebSocket(url)
     ws.onopen = () => {
       backoff = 500
+      notifyConnected(true)
     }
     ws.onmessage = (ev) => {
       try {
@@ -136,6 +154,7 @@ export function createWebSocketStream(url: string): EventStream {
       }
     }
     ws.onclose = () => {
+      notifyConnected(false)
       if (closed) return
       reconnectTimer = setTimeout(connect, backoff)
       backoff = Math.min(backoff * 2, 5000)
@@ -162,12 +181,21 @@ export function createWebSocketStream(url: string): EventStream {
         ws.send(JSON.stringify(event))
       }
     },
+    onConnectionChange: (handler) => {
+      connectionHandlers.add(handler)
+      // Replay current state immediately so first paint is right.
+      if (lastConnectedNotified !== null) handler(lastConnectedNotified)
+      return () => {
+        connectionHandlers.delete(handler)
+      }
+    },
     close: () => {
       closed = true
       if (initialTimer) clearTimeout(initialTimer)
       if (reconnectTimer) clearTimeout(reconnectTimer)
       ws?.close()
       handlers.clear()
+      connectionHandlers.clear()
     },
   }
 }

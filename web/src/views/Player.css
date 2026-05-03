@@ -157,6 +157,73 @@
   color: var(--text-faint);
 }
 
+/* ---------- ON AIR badge ---------- */
+.on-air {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 auto 16px;
+  padding: 6px 14px;
+  border: 1px solid var(--text-faint);
+  border-radius: 999px;
+  font-family: var(--pixel);
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  color: var(--text-dim);
+  width: max-content;
+  align-self: center;
+}
+
+.on-air-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  display: inline-block;
+}
+
+.on-air-label {
+  color: var(--text);
+}
+
+.on-air-sep {
+  color: var(--text-faint);
+}
+
+.on-air.is-idle {
+  border-color: rgba(45, 212, 167, 0.4);
+  color: var(--text-dim);
+}
+
+.on-air.is-idle .on-air-dot {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.on-air.is-speaking {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.on-air.is-speaking .on-air-dot {
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  animation: pulse 0.9s ease-in-out infinite;
+}
+
+.on-air.is-thinking {
+  border-color: rgba(212, 168, 67, 0.6);
+  color: var(--accent-amber);
+}
+
+.on-air.is-thinking .on-air-dot {
+  background: var(--accent-amber);
+  box-shadow: 0 0 6px var(--accent-amber);
+  animation: thinking-blink 0.8s ease-in-out infinite;
+}
+
 /* ---------- DJ waveform ---------- */
 .dj-waveform {
   display: flex;
@@ -648,4 +715,36 @@
 
 .mini-skip:active {
   transform: scale(0.92);
+}
+
+/* ---------- Station footer ---------- */
+.station-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 24px;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  color: var(--text-faint);
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.station-id {
+  color: var(--text-dim);
+}
+
+.station-sep {
+  opacity: 0.5;
+}
+
+.station-status.is-connected {
+  color: var(--accent);
+}
+
+.station-status.is-reconnecting {
+  color: var(--accent-amber);
+  animation: thinking-blink 1.4s ease-in-out infinite;
 }

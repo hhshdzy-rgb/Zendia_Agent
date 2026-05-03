@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Header from '../components/Header'
 import ClockHero from '../components/ClockHero'
+import OnAirBadge from '../components/OnAirBadge'
 import DJWaveform from '../components/DJWaveform'
 import NowPlayingCard from '../components/NowPlayingCard'
 import MessageTimeline from '../components/MessageTimeline'
 import BottomMiniPlayer from '../components/BottomMiniPlayer'
 import ChatInput from '../components/ChatInput'
+import StationFooter from '../components/StationFooter'
 import { usePlayerStream } from '../hooks/usePlayerStream'
 import './Player.css'
 
 export default function Player() {
-  const { state, send } = usePlayerStream()
+  const { state, send, connected } = usePlayerStream()
   const audioRef = useRef<HTMLAudioElement>(null)
   const ttsAudioRef = useRef<HTMLAudioElement>(null)
   const musicAudioCtxRef = useRef<AudioContext | null>(null)
@@ -327,8 +329,9 @@ export default function Player() {
         crossOrigin="anonymous"
       />
       <audio ref={ttsAudioRef} preload="auto" />
-      <Header speaking={state.speaking} thinking={state.thinking} />
+      <Header />
       <ClockHero />
+      <OnAirBadge speaking={state.speaking || Boolean(playingTts)} thinking={state.thinking} />
       <DJWaveform speaking={state.speaking || Boolean(playingTts)} analyser={ttsAnalyser} />
       <NowPlayingCard
         song={songWithLiveTime}
@@ -350,6 +353,7 @@ export default function Player() {
           volume={userVolume}
           onVolumeChange={setUserVolume}
         />
+        <StationFooter connected={connected} />
       </div>
     </div>
   )

@@ -18,10 +18,13 @@ const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 export type PlayerStream = {
   state: PlayerState
   send: (event: ClientEvent) => void
+  /** True while the WS is open. Mock stream is always true. */
+  connected: boolean
 }
 
 export function usePlayerStream(): PlayerStream {
   const [state, setState] = useState<PlayerState>(INITIAL)
+  const [connected, setConnected] = useState(false)
   const sendRef = useRef<(event: ClientEvent) => void>(() => {})
 
   useEffect(() => {
@@ -35,16 +38,18 @@ export function usePlayerStream(): PlayerStream {
     const unsubscribe = stream.subscribe((e) => {
       setState((prev) => reduce(prev, e))
     })
+    const unsubscribeConn = stream.onConnectionChange(setConnected)
 
     return () => {
       unsubscribe()
+      unsubscribeConn()
       stream.close()
       sendRef.current = () => {}
     }
   }, [])
 
   const send = useCallback((event: ClientEvent) => sendRef.current(event), [])
-  return { state, send }
+  return { state, send, connected }
 }
 
 function reduce(state: PlayerState, e: ServerEvent): PlayerState {
