@@ -48,6 +48,56 @@ Defaults:
 If port `8910` is busy, start the server with `PORT=xxxx npm run dev` and keep
 the Vite proxy setting aligned.
 
+## Production / LAN deployment (Mac mini, home network)
+
+Single Node process serves both the PWA and the API/WS, on one port.
+Other devices on the same WiFi can play from any browser.
+
+### One-time setup on the Mac
+
+```bash
+brew install node                         # if Node 22+ isn't installed
+npm install -g @anthropic-ai/claude-code  # claude CLI; log in once
+git clone <your repo url> Zendia
+cd Zendia
+npm run install:all                       # installs server + web deps
+cp server/.env.example server/.env
+# Edit server/.env — fill in NCM_COOKIE, FISH_API_KEY,
+# FISH_VOICE_ID_ZH / _EN, FISH_MODEL_ZH / _EN.
+```
+
+### Build + run
+
+```bash
+npm run build      # builds web → web/dist
+npm start          # starts the Node server, which auto-serves dist
+```
+
+Boot log prints every URL the server is reachable on:
+
+```
+[zendia] PWA serve: on (web/dist found)
+[zendia] listening on:
+           http://localhost:8910
+           http://192.168.1.42:8910
+```
+
+Open the LAN URL on your phone or iPad (same WiFi). PWA install works
+from Safari → Share → Add to Home Screen.
+
+### After code updates
+
+```bash
+git pull
+npm run install:all   # only re-runs npm install if package.json changed
+npm run build
+# Ctrl+C the server, then:
+npm start
+```
+
+Auto-start on Mac boot (so you don't have to keep a terminal open) is a
+follow-up step using `launchd`; not yet scripted here.
+
 ## Environment
 
 Copy `server/.env.example` to `server/.env` and fill in local secrets:
