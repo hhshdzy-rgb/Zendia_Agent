@@ -145,11 +145,87 @@ function extractClaudeText(raw: unknown): string {
 }
 
 // ---------------------------------------------------------------------------
+// Provider: OpenAI-compatible HTTP API
+// ---------------------------------------------------------------------------
+//
+// Works with any service that speaks the OpenAI chat/completions shape:
+//   - DeepSeek      OPENAI_BASE_URL=https://api.deepseek.com/v1     OPENAI_MODEL=deepseek-chat
+//   - 通义千问      OPENAI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1   OPENAI_MODEL=qwen-plus
+//   - Moonshot/Kimi OPENAI_BASE_URL=https://api.moonshot.cn/v1      OPENAI_MODEL=moonshot-v1-8k
+//   - Ollama (local) OPENAI_BASE_URL=http://localhost:11434/v1      OPENAI_MODEL=llama3.1
+//   - OpenAI itself OPENAI_BASE_URL=https://api.openai.com/v1       OPENAI_MODEL=gpt-4o-mini
+// API key is sent as `Authorization: Bearer <key>` (Ollama ignores it; pass any string).
+
+const openAiProvider: LlmProvider = {
+  name: 'openai',
+  async run(prompt, opts) {
+    const start = Date.now()
+    const baseUrl = (process.env.OPENAI_BASE_URL?.trim() || 'https://api.openai.com/v1').replace(/\/+$/, '')
+    const apiKey = process.env.OPENAI_API_KEY?.trim() || ''
+    const model = process.env.OPENAI_MODEL?.trim() || 'gpt-4o-mini'
+    const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS
+
+    const messages: Array<{ role: 'system' | 'user'; content: string }> = []
+    if (opts.systemPrompt) messages.push({ role: 'system', content: opts.systemPrompt })
+    messages.push({ role: 'user', content: prompt })
+
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+
+    try {
+      const res = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+        },
+        body: JSON.stringify({ model, messages, stream: false }),
+        signal: controller.signal,
+      })
+
+      const durationMs = Date.now() - start
+      if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        return {
+          ok: false,
+          durationMs,
+          error: `HTTP ${res.status} ${res.statusText}\n${body.slice(0, 500)}`,
+        }
+      }
+
+      const raw = (await res.json()) as unknown
+      const text = extractOpenAiText(raw)
+      return { ok: true, text, raw, durationMs }
+    } catch (err) {
+      const durationMs = Date.now() - start
+      const e = err as Error
+      const reason = e.name === 'AbortError' ? `timed out after ${timeoutMs}ms` : `fetch failed: ${e.message}`
+      return { ok: false, durationMs, error: reason }
+    } finally {
+      clearTimeout(timer)
+    }
+  },
+}
+
+function extractOpenAiText(raw: unknown): string {
+  if (raw && typeof raw === 'object') {
+    const r = raw as Record<string, unknown>
+    const choices = r.choices as Array<Record<string, unknown>> | undefined
+    const first = choices?.[0]
+    const message = first?.message as Record<string, unknown> | undefined
+    if (message && typeof message.content === 'string') return message.content
+    if (typeof first?.text === 'string') return first.text as string
+  }
+  return JSON.stringify(raw)
+}
+
+// ---------------------------------------------------------------------------
 // Picker
 // ---------------------------------------------------------------------------
 
 const PROVIDERS: Record<string, LlmProvider> = {
   'claude-cli': claudeCliProvider,
+  'openai': openAiProvider,
 }
 
 const SELECTED = process.env.ZENDIA_LLM?.trim() || 'claude-cli'
