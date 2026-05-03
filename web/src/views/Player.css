@@ -434,13 +434,16 @@
 }
 
 .message-speaking .message-body {
-  /* Whole body lights up in the on-air green while the TTS plays — the
-     old per-character karaoke highlight looked choppy on CJK. */
-  color: var(--accent);
+  /* While the TTS plays, the body becomes a green chat-bubble: the old
+     per-character karaoke highlight read choppy on CJK. */
+  background: var(--accent);
+  color: #fff;
   font-weight: 500;
-  font-size: 22px;
+  font-size: 26px;
   line-height: 1.4;
-  transition: color 200ms ease;
+  padding: 12px 16px;
+  border-radius: 14px;
+  transition: background 200ms ease, color 200ms ease;
 }
 .message-done .message-body { color: rgba(8, 6, 13, 0.32); }
 .message-pending .message-body { color: rgba(8, 6, 13, 0.55); }
