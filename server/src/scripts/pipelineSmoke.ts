@@ -1,12 +1,13 @@
 /* tsx server/src/scripts/pipelineSmoke.ts ["directive"]
    Full DJ-brain dry run:
      buildContext()  ->  systemPrompt
-     runClaude(directive, { systemPrompt })  ->  raw text
+     runLlm(directive, { systemPrompt })  ->  raw text
      parseDjReply  ->  {say, play, reason, segue}
 
-   Same shape the live runtime uses; only difference is this is one-shot. */
+   Same shape the live runtime uses; only difference is this is one-shot.
+   Honors ZENDIA_LLM so it tests whichever provider is currently picked. */
 
-import { runClaude } from '../claude.js'
+import { runLlm } from '../llm.js'
 import { buildContext } from '../context.js'
 import { buildDjDirective, parseDjReply } from '../dj-contract.js'
 
@@ -33,7 +34,7 @@ console.log(
 )
 console.log('[pipeline] calling claude...')
 
-const result = await runClaude(directive, {
+const result = await runLlm(directive, {
   systemPrompt: ctx.systemPrompt,
   timeoutMs: 120_000,
 })

@@ -1,4 +1,4 @@
-import { runClaude } from '../claude.js'
+import { runLlm } from '../llm.js'
 import { buildContext } from '../context.js'
 import { buildDjDirective, parseDjReply, type DjReply } from '../dj-contract.js'
 import type { Hub } from '../hub.js'
@@ -210,7 +210,7 @@ export function startLiveDJ(hub: Hub): () => void {
 
     let reply: DjReply | null = null
     try {
-      const result = await runClaude(directive, {
+      const result = await runLlm(directive, {
         systemPrompt: userInput
           ? `${ctx.systemPrompt}\n\n---\n\n# User input\n\n${userInput}`
           : ctx.systemPrompt,
@@ -340,7 +340,7 @@ export function startLiveDJ(hub: Hub): () => void {
 
     let reply: DjReply | null = null
     try {
-      const result = await runClaude(directive, {
+      const result = await runLlm(directive, {
         systemPrompt: ctx.systemPrompt,
         timeoutMs: CLAUDE_TIMEOUT_MS,
       })
