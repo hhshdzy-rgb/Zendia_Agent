@@ -26,18 +26,23 @@ export default function MessageTimeline({ messages, playingOverride }: Props) {
   return (
     <div className="message-timeline">
       {messages.map((m) => {
-        const isOverride = playingOverride?.id === m.id
+        const isUser = m.type === 'user_chat'
+        const isOverride = !isUser && playingOverride?.id === m.id
         const visualStatus = isOverride ? 'speaking' : m.status
-        const highlightIdx = isOverride
-          ? playingOverride.wordIdx
-          : m.status === 'speaking'
-            ? m.highlightWord
-            : undefined
+        const highlightIdx = isUser
+          ? undefined
+          : isOverride
+            ? playingOverride!.wordIdx
+            : m.status === 'speaking'
+              ? m.highlightWord
+              : undefined
+        const author = isUser ? '你' : 'Zendia'
+        const variantClass = isUser ? 'message-user-chat' : 'message-dj-say'
 
         return (
-          <article key={m.id} className={`message message-${visualStatus}`}>
+          <article key={m.id} className={`message message-${visualStatus} ${variantClass}`}>
             <header className="message-meta">
-              <span className="message-author">Zendia</span>
+              <span className="message-author">{author}</span>
               <span className="message-dot">/</span>
               <span className="message-ts mono">{formatTime(m.ts)}</span>
             </header>

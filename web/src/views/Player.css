@@ -305,6 +305,40 @@
   padding: 0 3px;
 }
 
+/* ---------- User-chat variant: right-aligned, green author label ---------- */
+.message.message-user-chat {
+  align-self: flex-end;
+  max-width: 82%;
+  text-align: left;
+}
+
+.message-user-chat .message-meta {
+  justify-content: flex-end;
+}
+
+.message-user-chat .message-author {
+  color: var(--accent);
+}
+
+/* User messages are static — never grow / fade with speaking state. */
+.message-user-chat .message-body {
+  color: #08060d;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.45;
+  background: rgba(45, 212, 167, 0.12);
+  border-radius: 12px;
+  padding: 8px 12px;
+}
+
+/* Override the speaking-state overgrow for user messages, just in case
+   playingOverride logic ever leaks into one (it shouldn't, but defensive). */
+.message-user-chat.message-speaking .message-body {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
 .message-sentinel {
   height: 1px;
 }
