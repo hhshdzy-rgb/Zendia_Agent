@@ -97,6 +97,11 @@ export function startLiveDJ(hub: Hub): () => void {
   // most recent — earlier ones still appear in the timeline but only the
   // last gets a dedicated DJ reply.
   let pendingUserMessage: string | null = null
+  // Handle to the speak-done timer of the *current* in-flight turn, so a
+  // user message can short-circuit the wordCount×220ms wait and get a
+  // reply within ~7s instead of 30s. Both fields cleared once fired.
+  let activeSpeakDoneTimer: ReturnType<typeof setTimeout> | null = null
+  let activeSpeakDoneFire: (() => void) | null = null
   let nextTurnTimer: ReturnType<typeof setTimeout> | null = null
   const timers = new Set<ReturnType<typeof setTimeout>>()
 
@@ -132,13 +137,32 @@ export function startLiveDJ(hub: Hub): () => void {
 
   const unsubscribeUserMessage = hub.onUserMessage((text) => {
     pendingUserMessage = text
+    if (turnInFlight && activeSpeakDoneFire) {
+      // The current turn is past Claude/Fish/NCM and just sitting on the
+      // wordCount × PER_WORD_MS wait. Fire the done callback now so the
+      // turn releases and we can run the reply turn ~immediately.
+      runImmediatelyAfterTurn = true
+      console.log(
+        `[live] user message during speak; short-circuiting speak timer to reply faster: ${JSON.stringify(text.slice(0, 60))}`,
+      )
+      const fire = activeSpeakDoneFire
+      const timer = activeSpeakDoneTimer
+      activeSpeakDoneFire = null
+      activeSpeakDoneTimer = null
+      if (timer) {
+        clearTimeout(timer)
+        timers.delete(timer)
+      }
+      fire()
+      return
+    }
     if (turnInFlight) {
       runImmediatelyAfterTurn = true
       console.log(`[live] user message during turn; queued reply: ${JSON.stringify(text.slice(0, 60))}`)
-    } else {
-      console.log(`[live] user message; triggering reply turn: ${JSON.stringify(text.slice(0, 60))}`)
-      scheduleNextTurn(0)
+      return
     }
+    console.log(`[live] user message; triggering reply turn: ${JSON.stringify(text.slice(0, 60))}`)
+    scheduleNextTurn(0)
   })
 
   hub.emit({ type: 'song', song: FALLBACK_SONG })
@@ -408,11 +432,24 @@ export function startLiveDJ(hub: Hub): () => void {
       }
     }
 
-    later(wordCount * PER_WORD_MS, () => {
+    // The speak-done logic is split out so onUserMessage can fire it early
+    // (see the activeSpeakDoneFire ref). It MUST be idempotent — if the
+    // user-message handler invokes it, the setTimeout below would otherwise
+    // double-fire; we guard by clearing both refs as the first step.
+    const fire = () => {
+      if (activeSpeakDoneFire !== fire) return // already fired
+      activeSpeakDoneFire = null
+      activeSpeakDoneTimer = null
       hub.emit({ type: 'message_done', id })
       hub.emit({ type: 'tts_state', state: 'idle' })
       onDone()
-    })
+    }
+    activeSpeakDoneFire = fire
+    activeSpeakDoneTimer = setTimeout(() => {
+      if (activeSpeakDoneTimer) timers.delete(activeSpeakDoneTimer)
+      if (!stopped) fire()
+    }, wordCount * PER_WORD_MS)
+    timers.add(activeSpeakDoneTimer)
   }
 
   scheduleNextTurn(500)
