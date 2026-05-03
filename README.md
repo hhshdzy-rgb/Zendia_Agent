@@ -135,6 +135,26 @@ Smoke-test the selected provider end-to-end:
 cd server && npm run llm:smoke
 ```
 
+## Weather
+
+Optional. When `WEATHER_LAT` / `WEATHER_LON` are set in `server/.env`, the DJ
+context block includes a current-conditions line so Claude can reference what's
+happening outside (e.g. "raining since lunch — let's keep it mellow"). Powered
+by [Open-Meteo](https://open-meteo.com) — no API key, free, global coverage.
+Cached for 10 minutes per process. Without coords, weather is silently skipped.
+
+```bash
+WEATHER_LAT=39.91
+WEATHER_LON=116.40
+WEATHER_PLACE=Beijing   # optional label for the prompt
+```
+
+Smoke test:
+
+```bash
+cd server && npm run weather:smoke
+```
+
 ## Environment
 
 Copy `server/.env.example` to `server/.env` and fill in local secrets:
@@ -142,6 +162,8 @@ Copy `server/.env.example` to `server/.env` and fill in local secrets:
 - `ZENDIA_LLM`: which LLM backend to run (`claude-cli` default, or `openai`).
 - `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `OPENAI_MODEL`: only when
   `ZENDIA_LLM=openai`.
+- `WEATHER_LAT` / `WEATHER_LON` / `WEATHER_PLACE`: optional Open-Meteo
+  coordinates for the DJ weather line.
 - `NCM_COOKIE`: optional but recommended for NetEase Cloud Music tracks that
   require login.
 - `FISH_API_KEY`: required for DJ voice synthesis.

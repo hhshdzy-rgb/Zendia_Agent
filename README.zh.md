@@ -146,6 +146,26 @@ OPENAI_MODEL=deepseek-chat
 切完跑 `cd server && npm run llm:smoke`,看到 `[llm smoke] text:` 后面有
 JSON 输出就说明这条链路通了。
 
+## 天气(可选)
+
+设了经纬度,DJ context 里就会带一行实时天气,让 Claude 偶尔聊一下窗外
+("下了一下午雨,这首慢歌正合适")。用的是 [Open-Meteo](https://open-meteo.com)
+— **不用 API key、免费、国内能直连**。每个进程缓存 10 分钟,不会每首歌都打。
+
+```bash
+WEATHER_LAT=39.91
+WEATHER_LON=116.40
+WEATHER_PLACE=Beijing   # 可选,只是 prompt 里的标签
+```
+
+不设这三个就当没装这功能,`weather` 那行 context 会自动跳过。
+
+经纬度去 https://open-meteo.com 或任意地图查一下。验证:
+
+```bash
+cd server && npm run weather:smoke
+```
+
 ## 环境变量
 
 复制 `server/.env.example` 到 `server/.env`,填本地 secrets。
@@ -157,6 +177,8 @@ JSON 输出就说明这条链路通了。
 | `OPENAI_BASE_URL` | `openai` 时必填 | OpenAI 兼容 endpoint(见上表) |
 | `OPENAI_API_KEY` | `openai` 时必填 | 对应平台的 API key |
 | `OPENAI_MODEL` | `openai` 时必填 | 对应平台的模型名 |
+| `WEATHER_LAT` / `WEATHER_LON` | 可选 | Open-Meteo 经纬度,设了 DJ 就知道天气 |
+| `WEATHER_PLACE` | 可选 | 天气前缀文案,如 `Beijing`(只入 prompt) |
 | `NCM_COOKIE` | 推荐 | 网易云的 `MUSIC_U` cookie。没 cookie 大量主流华语歌(VIP 锁)放不出 |
 | `FISH_API_KEY` | 必填 | Fish Audio API key,DJ 声音合成需要 |
 | `FISH_VOICE_ID_ZH` | 可选 | 中文 DJ 用的 voice id |
