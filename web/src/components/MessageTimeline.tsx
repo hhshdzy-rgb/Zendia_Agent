@@ -37,16 +37,22 @@ export default function MessageTimeline({ messages, playingOverride }: Props) {
               ? m.highlightWord
               : undefined
         const author = isUser ? '你' : 'Zendia'
+        const avatarLetter = isUser ? '你' : 'Z'
         const variantClass = isUser ? 'message-user-chat' : 'message-dj-say'
 
         return (
           <article key={m.id} className={`message message-${visualStatus} ${variantClass}`}>
-            <header className="message-meta">
-              <span className="message-author">{author}</span>
-              <span className="message-dot">/</span>
-              <span className="message-ts mono">{formatTime(m.ts)}</span>
-            </header>
-            <p className="message-body">{renderBody(m.text, highlightIdx)}</p>
+            <div className="message-avatar" aria-hidden="true">
+              {avatarLetter}
+            </div>
+            <div className="message-content">
+              <header className="message-meta">
+                <span className="message-author">{author}</span>
+                <span className="message-dot">/</span>
+                <span className="message-ts mono">{formatTime(m.ts)}</span>
+              </header>
+              <p className="message-body">{renderBody(m.text, highlightIdx)}</p>
+            </div>
           </article>
         )
       })}

@@ -451,7 +451,31 @@
 .message-pending .message-body { color: rgba(8, 6, 13, 0.55); }
 
 .message {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   animation: messageIn 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.message-content {
+  flex: 1;
+  min-width: 0; /* allow ellipsis on long lines inside the column */
+}
+
+.message-avatar {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--pixel);
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  background: #1c1c1c;
+  color: #f3f2ee;
+  user-select: none;
 }
 
 @keyframes messageIn {
@@ -479,8 +503,18 @@
 /* ---------- User-chat variant: right-aligned, green author label ---------- */
 .message.message-user-chat {
   align-self: flex-end;
-  max-width: 82%;
+  max-width: 88%;
   text-align: left;
+  flex-direction: row-reverse;
+}
+
+.message-user-chat .message-avatar {
+  background: var(--accent);
+  color: #08060d;
+  font-size: 12px;
+  font-family: var(--sans);
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .message-user-chat .message-meta {
