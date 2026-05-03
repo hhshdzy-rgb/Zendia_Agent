@@ -41,8 +41,11 @@
 }
 
 .brand {
-  font-size: 18px;
-  letter-spacing: 0.04em;
+  font-family: var(--pixel);
+  /* VT323 reads small at the same nominal font-size, bump it up. */
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: 0.06em;
   color: var(--text);
 }
 
@@ -50,7 +53,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-family: var(--pixel);
+  font-size: 16px;
+  letter-spacing: 0.05em;
   color: var(--text-dim);
 }
 
@@ -270,7 +275,9 @@
 }
 
 .np-time {
-  font-size: 13px;
+  font-family: var(--pixel);
+  font-size: 16px;
+  letter-spacing: 0.04em;
   color: var(--card-sub);
   white-space: nowrap;
 }
@@ -305,6 +312,9 @@
 }
 
 .message-ts {
+  font-family: var(--pixel);
+  font-size: 15px;
+  letter-spacing: 0.03em;
   color: #6b6b6b;
 }
 
@@ -485,9 +495,11 @@
 }
 
 .mini-time {
-  font-size: 13px;
+  font-family: var(--pixel);
+  font-size: 17px;
+  letter-spacing: 0.04em;
   color: var(--text);
-  width: 36px;
+  width: 40px;
 }
 
 .mini-waveform {

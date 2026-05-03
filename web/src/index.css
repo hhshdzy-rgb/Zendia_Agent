@@ -9,14 +9,19 @@
   --text-dim: #8a8a8a;
   --text-faint: #4a4a4a;
   --border: #1d1d22;
-  --accent: #2dd4a7;          /* "Speaking..." green */
+  --accent: #2dd4a7;           /* on-air / speaking green */
   --accent-bg: rgba(45, 212, 167, 0.18);
+  --accent-amber: #d4a843;     /* thinking / standby amber */
   --highlight: #b5f0c9;        /* current word highlight */
   --tab-active: #ffffff;
   --tab-inactive: #6b6b6b;
 
+  /* Body / chat / anything Chinese: keep system sans for readability. */
   --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, 'SF Mono', Consolas, monospace;
+  /* Chrome / brand / clock / status / station IDs: VT323 for the radio
+     panel feel. Falls back to mono for CJK glyphs VT323 doesn't ship. */
+  --pixel: 'VT323', ui-monospace, 'SF Mono', Consolas, monospace;
 
   font: 16px/1.4 var(--sans);
   color: var(--text);
@@ -24,6 +29,13 @@
   color-scheme: dark;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Utility class for any chrome element that should look like an LED
+   readout. VT323 reads small, so callers usually bump font-size too. */
+.pixel {
+  font-family: var(--pixel);
+  letter-spacing: 0.02em;
 }
 
 * {
