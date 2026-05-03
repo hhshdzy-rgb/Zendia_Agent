@@ -188,15 +188,6 @@ export function startLiveDJ(hub: Hub): () => void {
     const userMessage = pendingUserMessage
     pendingUserMessage = null
 
-    const weather = weatherUsedForPrompt ? undefined : await getWeather()
-    if (weather) weatherUsedForPrompt = true
-    const ctx = buildContext({
-      environment: {
-        now: new Date(),
-        ...(weather ? { weather: weather.text } : {}),
-      },
-    })
-
     const songEnded = hub.isCurrentSongEnded()
     const handoffReason = hub.getHandoffReason()
     const isFirstSong = lastSongChangeAt === 0
@@ -205,6 +196,18 @@ export function startLiveDJ(hub: Hub): () => void {
       : songEnded || isFirstSong
         ? 'intro'
         : 'mid-song'
+
+    // Weather only on the very first intro turn after server boot. Skip
+    // intros and reply / mid-song turns never see it.
+    const useWeather = !weatherUsedForPrompt && mode === 'intro' && isFirstSong
+    const weather = useWeather ? await getWeather() : undefined
+    if (weather) weatherUsedForPrompt = true
+    const ctx = buildContext({
+      environment: {
+        now: new Date(),
+        ...(weather ? { weather: weather.text } : {}),
+      },
+    })
     const directive = buildDjDirective({
       ...(currentSong ? { nowPlaying: currentSong } : {}),
       mode,
@@ -333,13 +336,10 @@ export function startLiveDJ(hub: Hub): () => void {
     skipIntroInFlight = true
     turnInFlight = true
 
-    const weather = weatherUsedForPrompt ? undefined : await getWeather()
-    if (weather) weatherUsedForPrompt = true
+    // Skip-intros never inject weather — that slot is reserved for the
+    // very first show-open intro in generateTurn.
     const ctx = buildContext({
-      environment: {
-        now: new Date(),
-        ...(weather ? { weather: weather.text } : {}),
-      },
+      environment: { now: new Date() },
       userInput: `The listener skipped into "${song.title}" by ${song.artist}. Say a short DJ intro for this exact track. Do not choose another song; play must be [].`,
       historyLimit: 4,
     })
