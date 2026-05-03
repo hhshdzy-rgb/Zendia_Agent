@@ -8,7 +8,9 @@ export default function Header() {
   return (
     <header className="player-header">
       <div className="player-header-left">
-        <Link to="/profile" className="avatar" aria-label="Open profile" />
+        <Link to="/profile" className="avatar" aria-label="Open profile">
+          Z
+        </Link>
         <div className="brand">Zendia</div>
       </div>
       <div className="player-header-right">

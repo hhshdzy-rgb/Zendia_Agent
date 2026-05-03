@@ -25,7 +25,15 @@
   height: 32px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--brand), var(--brand-deep));
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--pixel);
+  font-size: 22px;
+  line-height: 1;
+  color: #fff;
+  text-decoration: none;
+  user-select: none;
   cursor: pointer;
   transition: transform 120ms ease;
 }
@@ -457,8 +465,8 @@
   font-family: var(--pixel);
   font-size: 16px;
   letter-spacing: 0.02em;
-  background: #1c1c1c;
-  color: #f3f2ee;
+  background: linear-gradient(135deg, var(--brand), var(--brand-deep));
+  color: #fff;
   user-select: none;
 }
 
