@@ -17,7 +17,7 @@ export type WordTiming = {
 export type Message = {
   id: string
   ts: number
-  type: 'dj_say' | 'song' | 'system'
+  type: 'dj_say' | 'song' | 'system' | 'user_chat'
   text: string
   status: 'pending' | 'speaking' | 'done' | 'failed'
   highlightWord?: number
@@ -29,6 +29,7 @@ export type Message = {
 export type ClientEvent =
   | { type: 'song_ended'; id?: number }
   | { type: 'skip_song'; id?: number }
+  | { type: 'user_message'; text: string; clientMsgId: string }
   | { type: 'ping' }
 
 export type PlayerState = {

@@ -11,13 +11,17 @@ db.pragma('journal_mode = WAL')
 db.pragma('synchronous = NORMAL')
 db.pragma('foreign_keys = ON')
 
+// Bump when the table schema or its CHECK constraints change so the
+// migration block below knows to rebuild old DBs in the wild.
+const SCHEMA_VERSION = 2
+
 function migrateMessagesTable() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS messages (
       id                TEXT PRIMARY KEY,
       ts                INTEGER NOT NULL,
       type              TEXT NOT NULL DEFAULT 'dj_say'
-                        CHECK (type IN ('dj_say', 'song', 'system')),
+                        CHECK (type IN ('dj_say', 'song', 'system', 'user_chat')),
       text              TEXT NOT NULL,
       status            TEXT NOT NULL
                         CHECK (status IN ('pending', 'speaking', 'done', 'failed')),
@@ -39,16 +43,25 @@ function migrateMessagesTable() {
     'word_timings_json',
     'updated_at',
   ]
+  const columnsOK = required.every((name) => names.has(name))
+  const dbVersion = db.pragma('user_version', { simple: true }) as number
+  if (columnsOK && dbVersion >= SCHEMA_VERSION) return
 
-  if (required.every((name) => names.has(name))) return
+  // Rebuild path. Some columns may not exist on very old DBs; guard the
+  // SELECT with NULL fills for whatever's missing.
+  const audioUrlSrc = names.has('audio_url') ? 'audio_url' : 'NULL'
+  const songIdSrc = names.has('song_id') ? 'song_id' : 'NULL'
+  const timingsSrc = names.has('word_timings_json') ? 'word_timings_json' : 'NULL'
+  const updatedAtSrc = names.has('updated_at') ? 'updated_at' : 'created_at'
+  const typeSrc = names.has('type') ? `COALESCE(type, 'dj_say')` : `'dj_say'`
 
+  db.exec(`ALTER TABLE messages RENAME TO messages_old;`)
   db.exec(`
-    ALTER TABLE messages RENAME TO messages_old;
     CREATE TABLE messages (
       id                TEXT PRIMARY KEY,
       ts                INTEGER NOT NULL,
       type              TEXT NOT NULL DEFAULT 'dj_say'
-                        CHECK (type IN ('dj_say', 'song', 'system')),
+                        CHECK (type IN ('dj_say', 'song', 'system', 'user_chat')),
       text              TEXT NOT NULL,
       status            TEXT NOT NULL
                         CHECK (status IN ('pending', 'speaking', 'done', 'failed')),
@@ -59,6 +72,8 @@ function migrateMessagesTable() {
       created_at        INTEGER NOT NULL,
       updated_at        INTEGER NOT NULL
     );
+  `)
+  db.exec(`
     INSERT INTO messages (
       id, ts, type, text, status, highlight_word, audio_url, song_id,
       word_timings_json, created_at, updated_at
@@ -66,18 +81,19 @@ function migrateMessagesTable() {
     SELECT
       id,
       ts,
-      'dj_say',
+      ${typeSrc},
       text,
       CASE WHEN status IN ('pending', 'speaking', 'done', 'failed') THEN status ELSE 'done' END,
       highlight_word,
-      NULL,
-      NULL,
-      NULL,
+      ${audioUrlSrc},
+      ${songIdSrc},
+      ${timingsSrc},
       created_at,
-      created_at
+      ${updatedAtSrc}
     FROM messages_old;
-    DROP TABLE messages_old;
   `)
+  db.exec(`DROP TABLE messages_old;`)
+  db.pragma(`user_version = ${SCHEMA_VERSION}`)
 }
 
 migrateMessagesTable()

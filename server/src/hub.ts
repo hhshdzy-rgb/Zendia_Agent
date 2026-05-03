@@ -19,6 +19,10 @@ export class Hub {
   private currentSongEnded = false
   private handoffReason: 'ended' | 'skip' | null = null
   private songEndedListeners = new Set<() => void>()
+  private userMessageListeners = new Set<(text: string) => void>()
+  // Trim absurdly long inputs so a single user can't blow up token budget
+  // or the prompt size in one go.
+  private static readonly MAX_USER_MESSAGE_CHARS = 1000
 
   isCurrentSongEnded(): boolean {
     return this.currentSongEnded
@@ -35,6 +39,15 @@ export class Hub {
     }
   }
 
+  // Subscribers (live loop, mainly) get notified after the user message
+  // has been persisted + broadcast, so they can react with a Claude turn.
+  onUserMessage(fn: (text: string) => void): () => void {
+    this.userMessageListeners.add(fn)
+    return () => {
+      this.userMessageListeners.delete(fn)
+    }
+  }
+
   handleClientEvent(event: ClientEvent): void {
     switch (event.type) {
       case 'song_ended':
@@ -46,6 +59,27 @@ export class Hub {
         this.handoffReason = event.type === 'skip_song' ? 'skip' : 'ended'
         this.songEndedListeners.forEach((fn) => fn())
         return
+      case 'user_message': {
+        const text = event.text?.trim()
+        const id = event.clientMsgId?.trim()
+        if (!text || !id) return // silent drop on malformed frames
+        const truncated =
+          text.length > Hub.MAX_USER_MESSAGE_CHARS
+            ? text.slice(0, Hub.MAX_USER_MESSAGE_CHARS)
+            : text
+        const message: Message = {
+          id,
+          ts: Math.floor((Date.now() - this.sessionStartedAt) / 1000),
+          type: 'user_chat',
+          text: truncated,
+          status: 'done',
+        }
+        // Reuse the message_new path so the broadcast + dedup + DB insert
+        // logic stays in one place.
+        this.emit({ type: 'message_new', message })
+        this.userMessageListeners.forEach((fn) => fn(truncated))
+        return
+      }
       case 'ping':
         return
     }
