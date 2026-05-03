@@ -20,6 +20,15 @@ export default function Player() {
   const [position, setPosition] = useState(0)
   const [duration, setDuration] = useState(0)
   const [ttsHighlight, setTtsHighlight] = useState<{ id: string; wordIdx: number } | null>(null)
+  // User-controlled volume (0..1). Music ducking still applies on top of
+  // this when the DJ is talking — see the volume sync effect below.
+  const [userVolume, setUserVolume] = useState<number>(() => {
+    if (typeof localStorage === 'undefined') return 1
+    const stored = localStorage.getItem('zendia.volume')
+    if (!stored) return 1
+    const n = Number(stored)
+    return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 1
+  })
   // Local state for the message whose TTS audio we are *currently playing*.
   // Decoupled from the server's status='speaking' window because that window
   // is shorter than the actual audio (server estimates 220ms/word, real Fish
@@ -200,14 +209,23 @@ export default function Player() {
     }
   }, [paused, playingTts])
 
-  // Music ducking: drop volume while DJ audio is actually playing (keyed
-  // on `playingTts`, not the server status), so the song doesn't ramp
-  // back up while the voice is still mid-sentence.
+  // Music + TTS volume sync. userVolume is the ceiling; music gets ducked
+  // to 25% of the ceiling while DJ is actually speaking (playingTts), and
+  // ramps back to the full ceiling when the voice finishes. TTS plays at
+  // the full ceiling so the user can hear what's said clearly.
   useEffect(() => {
     const audio = audioRef.current
-    if (!audio) return
-    audio.volume = playingTts ? 0.25 : 1.0
-  }, [playingTts])
+    if (audio) audio.volume = playingTts ? userVolume * 0.25 : userVolume
+    const tts = ttsAudioRef.current
+    if (tts) tts.volume = userVolume
+  }, [playingTts, userVolume])
+
+  // Persist volume across reloads.
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('zendia.volume', String(userVolume))
+    }
+  }, [userVolume])
 
   const togglePlay = () => {
     const audio = audioRef.current
@@ -278,6 +296,8 @@ export default function Player() {
           onTogglePlay={togglePlay}
           onSkip={skipSong}
           analyser={musicAnalyser}
+          volume={userVolume}
+          onVolumeChange={setUserVolume}
         />
       </div>
     </div>

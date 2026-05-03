@@ -8,6 +8,9 @@ type Props = {
   onSkip: () => void
   analyser: AnalyserNode | null
   bars?: number
+  /** 0..1 — user's volume preference (before any TTS ducking). */
+  volume: number
+  onVolumeChange: (v: number) => void
 }
 
 export default function BottomMiniPlayer({
@@ -17,6 +20,8 @@ export default function BottomMiniPlayer({
   onSkip,
   analyser,
   bars = 40,
+  volume,
+  onVolumeChange,
 }: Props) {
   const [heights, setHeights] = useState<number[]>(() =>
     Array.from({ length: bars }, (_, i) => 30 + Math.sin(i * 0.6) * 18 + 10),
@@ -49,6 +54,18 @@ export default function BottomMiniPlayer({
           <div key={i} className="mini-bar" style={{ height: `${h}%` }} />
         ))}
       </div>
+      <div className="mini-volume" title={`Volume ${Math.round(volume * 100)}%`}>
+        <SpeakerIcon muted={volume === 0} />
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={Math.round(volume * 100)}
+          onChange={(e) => onVolumeChange(Number(e.target.value) / 100)}
+          className="mini-volume-range"
+          aria-label="Volume"
+        />
+      </div>
       <button
         type="button"
         className="mini-toggle"
@@ -67,6 +84,28 @@ export default function BottomMiniPlayer({
         <SkipIcon />
       </button>
     </div>
+  )
+}
+
+function SpeakerIcon({ muted }: { muted: boolean }) {
+  if (muted) {
+    return (
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+        <path d="M3 9v6h4l5 4V5L7 9H3z" />
+        <path
+          d="M16 9l5 5m0-5l-5 5"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          fill="none"
+          strokeLinecap="round"
+        />
+      </svg>
+    )
+  }
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+      <path d="M3 9v6h4l5 4V5L7 9H3z" />
+    </svg>
   )
 }
 
