@@ -294,6 +294,80 @@
   height: 1px;
 }
 
+/* ---------- Footer (chat input + mini player as one sticky block) ---------- */
+.player-footer {
+  margin-top: auto;
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* Inside the footer the mini-player no longer needs its own sticky/auto. */
+.player-footer .mini-player {
+  margin-top: 0;
+  position: static;
+}
+
+/* ---------- Chat input ---------- */
+.chat-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.chat-input-text {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 14px;
+  outline: none;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.chat-input-text::placeholder {
+  color: var(--text-dim);
+}
+
+.chat-input-text:focus {
+  border-color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.chat-input-text:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-input-send {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--text);
+  color: var(--bg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.chat-input-send:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.chat-input-send:not(:disabled):active {
+  transform: scale(0.92);
+}
+
 /* ---------- Bottom mini player ---------- */
 .mini-player {
   margin-top: auto;

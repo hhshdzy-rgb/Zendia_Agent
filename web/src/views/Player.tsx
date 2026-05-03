@@ -4,6 +4,7 @@ import DJWaveform from '../components/DJWaveform'
 import NowPlayingCard from '../components/NowPlayingCard'
 import MessageTimeline from '../components/MessageTimeline'
 import BottomMiniPlayer from '../components/BottomMiniPlayer'
+import ChatInput from '../components/ChatInput'
 import { usePlayerStream } from '../hooks/usePlayerStream'
 import './Player.css'
 
@@ -231,6 +232,10 @@ export default function Player() {
     send({ type: 'skip_song', ...(state.song.id !== undefined && { id: state.song.id }) })
   }
 
+  const sendChat = (text: string) => {
+    send({ type: 'user_message', text, clientMsgId: crypto.randomUUID() })
+  }
+
   const songWithLiveTime = {
     ...state.song,
     positionSec: position,
@@ -254,13 +259,16 @@ export default function Player() {
         onTogglePlay={togglePlay}
       />
       <MessageTimeline messages={state.messages} playingOverride={ttsHighlight} />
-      <BottomMiniPlayer
-        positionSec={position}
-        paused={paused}
-        onTogglePlay={togglePlay}
-        onSkip={skipSong}
-        analyser={musicAnalyser}
-      />
+      <div className="player-footer">
+        <ChatInput onSend={sendChat} />
+        <BottomMiniPlayer
+          positionSec={position}
+          paused={paused}
+          onTogglePlay={togglePlay}
+          onSkip={skipSong}
+          analyser={musicAnalyser}
+        />
+      </div>
     </div>
   )
 }
