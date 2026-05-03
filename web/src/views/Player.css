@@ -34,12 +34,6 @@
   transform: scale(0.92);
 }
 
-.player-header-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
 .brand {
   font-family: var(--pixel);
   /* VT323 reads small at the same nominal font-size, bump it up. */
@@ -49,43 +43,9 @@
   color: var(--text);
 }
 
-.status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--pixel);
-  font-size: 16px;
-  letter-spacing: 0.05em;
-  color: var(--text-dim);
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-faint);
-}
-
-.status.is-speaking {
-  color: var(--accent);
-}
-
-.status.is-speaking .status-dot {
-  background: var(--accent);
-  box-shadow: 0 0 8px var(--accent);
-  animation: pulse 1.4s ease-in-out infinite;
-}
-
-.status.is-thinking {
-  color: #d4a843;
-}
-
-.status.is-thinking .status-dot {
-  background: #d4a843;
-  box-shadow: 0 0 6px #d4a843;
-  animation: thinking-blink 1s ease-in-out infinite;
-}
-
+/* Shared by OnAirBadge dot, StationFooter status, and any other future
+   "live" indicator. Kept here near the top because the keyframes need
+   to be parsed before any rule that references them. */
 @keyframes pulse {
   0%,
   100% { opacity: 0.6; }
