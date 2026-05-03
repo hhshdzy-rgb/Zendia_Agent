@@ -17,13 +17,16 @@ const CACHE_DIR = path.join(SERVER_ROOT, 'cache', 'tts')
 
 const FISH_API_KEY = process.env.FISH_API_KEY?.trim() || undefined
 const FISH_API_URL = 'https://api.fish.audio/v1/tts'
-// Per-language voice picks. The runtime auto-detects whether `say` is
-// CJK or Latin and routes to the matching voice. FISH_VOICE_ID is the
-// fallback when a language-specific id isn't set.
+// Per-language voice + model. The runtime auto-detects whether `say` is
+// CJK or Latin and routes both fields to the matching pair. The
+// non-suffixed env vars (FISH_VOICE_ID, FISH_MODEL) are global fallbacks
+// when a language-specific one isn't set.
 const FISH_VOICE_ID = process.env.FISH_VOICE_ID?.trim() || undefined
 const FISH_VOICE_ID_ZH = process.env.FISH_VOICE_ID_ZH?.trim() || undefined
 const FISH_VOICE_ID_EN = process.env.FISH_VOICE_ID_EN?.trim() || undefined
-const FISH_MODEL = process.env.FISH_MODEL?.trim() || 'speech-1.6'
+const FISH_MODEL_DEFAULT = process.env.FISH_MODEL?.trim() || 'speech-1.6'
+const FISH_MODEL_ZH = process.env.FISH_MODEL_ZH?.trim() || undefined
+const FISH_MODEL_EN = process.env.FISH_MODEL_EN?.trim() || undefined
 
 function detectLanguage(text: string): 'zh' | 'en' {
   // Count CJK characters vs total non-whitespace chars. A pure Chinese
@@ -50,10 +53,18 @@ function detectLanguage(text: string): 'zh' | 'en' {
   return cjk / total >= 0.3 ? 'zh' : 'en'
 }
 
-function pickVoice(text: string): string {
+function pickVoiceAndModel(text: string): { voice: string; model: string } {
   const lang = detectLanguage(text)
-  if (lang === 'zh') return FISH_VOICE_ID_ZH ?? FISH_VOICE_ID ?? ''
-  return FISH_VOICE_ID_EN ?? FISH_VOICE_ID ?? ''
+  if (lang === 'zh') {
+    return {
+      voice: FISH_VOICE_ID_ZH ?? FISH_VOICE_ID ?? '',
+      model: FISH_MODEL_ZH ?? FISH_MODEL_DEFAULT,
+    }
+  }
+  return {
+    voice: FISH_VOICE_ID_EN ?? FISH_VOICE_ID ?? '',
+    model: FISH_MODEL_EN ?? FISH_MODEL_DEFAULT,
+  }
 }
 
 if (!existsSync(CACHE_DIR)) mkdirSync(CACHE_DIR, { recursive: true })
@@ -91,8 +102,8 @@ export async function synthesize(text: string): Promise<SynthResult | null> {
   if (!FISH_API_KEY) return null
   if (!text.trim()) return null
 
-  const voice = pickVoice(text)
-  const hash = hashKey(text, voice, FISH_MODEL)
+  const { voice, model } = pickVoiceAndModel(text)
+  const hash = hashKey(text, voice, model)
   const filename = `${hash}.mp3`
   const absPath = path.join(CACHE_DIR, filename)
   const url = `/tts/${filename}`
@@ -116,7 +127,7 @@ export async function synthesize(text: string): Promise<SynthResult | null> {
     headers: {
       Authorization: `Bearer ${FISH_API_KEY}`,
       'Content-Type': 'application/msgpack',
-      model: FISH_MODEL,
+      model,
     },
     body: encode(body),
   })
