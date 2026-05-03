@@ -439,10 +439,10 @@
   background: var(--accent);
   color: #fff;
   font-weight: 500;
-  font-size: 26px;
-  line-height: 1.4;
-  padding: 12px 16px;
-  border-radius: 14px;
+  font-size: 18px;
+  line-height: 1.45;
+  padding: 8px 12px;
+  border-radius: 12px;
   transition: background 200ms ease, color 200ms ease;
 }
 .message-done .message-body { color: rgba(8, 6, 13, 0.32); }
