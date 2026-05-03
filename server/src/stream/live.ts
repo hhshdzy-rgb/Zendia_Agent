@@ -109,6 +109,11 @@ export function startLiveDJ(hub: Hub): () => void {
   let activeSpeakDoneTimer: ReturnType<typeof setTimeout> | null = null
   let activeSpeakDoneFire: (() => void) | null = null
   let nextTurnTimer: ReturnType<typeof setTimeout> | null = null
+  // True once a DJ turn has actually used weather in its context. After
+  // that, weather is omitted from the prompt — the DJ keeps narrating
+  // normally without re-mentioning it. The UI weather strip stays live
+  // (it has its own broadcast loop in index.ts).
+  let weatherUsedForPrompt = false
   const timers = new Set<ReturnType<typeof setTimeout>>()
 
   const later = (ms: number, fn: () => void) => {
@@ -183,7 +188,8 @@ export function startLiveDJ(hub: Hub): () => void {
     const userMessage = pendingUserMessage
     pendingUserMessage = null
 
-    const weather = await getWeather()
+    const weather = weatherUsedForPrompt ? undefined : await getWeather()
+    if (weather) weatherUsedForPrompt = true
     const ctx = buildContext({
       environment: {
         now: new Date(),
@@ -327,7 +333,8 @@ export function startLiveDJ(hub: Hub): () => void {
     skipIntroInFlight = true
     turnInFlight = true
 
-    const weather = await getWeather()
+    const weather = weatherUsedForPrompt ? undefined : await getWeather()
+    if (weather) weatherUsedForPrompt = true
     const ctx = buildContext({
       environment: {
         now: new Date(),
