@@ -9,6 +9,7 @@ import BottomMiniPlayer from '../components/BottomMiniPlayer'
 import ChatInput from '../components/ChatInput'
 import StationFooter from '../components/StationFooter'
 import { usePlayerStream } from '../hooks/usePlayerStream'
+import { countSpeakable } from '../lib/tokenize'
 import './Player.css'
 
 export default function Player() {
@@ -174,7 +175,10 @@ export default function Player() {
       tts.currentTime = 0
       tts.load()
     }
-    const wordCount = playingTts.text.split(/\s+/).filter(Boolean).length
+    // Use the same tokenizer MessageTimeline uses, so the word index that
+    // moves the cursor matches the slot count rendered on screen. Critical
+    // for CJK where whitespace-only split would yield 1 "word".
+    const wordCount = countSpeakable(playingTts.text)
     const { id: messageId } = playingTts
     const onTime = () => {
       const dur = tts.duration

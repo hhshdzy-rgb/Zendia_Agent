@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { formatTime } from '../lib/format'
+import { tokenize } from '../lib/tokenize'
 import type { Message } from '../types'
 
 type Props = {
@@ -91,7 +92,7 @@ function ReplayIcon() {
 }
 
 function renderBody(text: string, highlightIdx: number | undefined) {
-  const tokens = text.split(/(\s+)/)
+  const tokens = tokenize(text)
   let wordIdx = -1
   return tokens.map((tok, i) => {
     if (/^\s+$/.test(tok)) return <span key={i}>{tok}</span>

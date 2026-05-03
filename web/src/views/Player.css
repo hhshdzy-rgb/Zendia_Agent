@@ -474,7 +474,10 @@
 }
 
 .word {
-  transition: background 220ms ease;
+  /* Short transition so the cursor "snaps" from one word to the next
+     instead of leaving a soft trail of half-faded predecessors — the
+     karaoke-style discrete jump effect. */
+  transition: background 60ms linear;
   border-radius: 4px;
   padding: 0 1px;
 }
