@@ -2,6 +2,10 @@
 
 > 中文 · [English](./README.md)
 
+<p align="center">
+  <img src="./docs/screenshots/player.png" alt="Zendia 播放器界面 — 深夜暗色主题,LED 大时钟、ON AIR 信号灯、白色 Now Playing 卡片、聊天式 DJ 时间线" width="320">
+</p>
+
 私人 AI 电台:读懂你的听歌习惯,规划声音段落,像一个 DJ 一样在歌曲之间开口说话。
 
 ## 架构

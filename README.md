@@ -2,6 +2,10 @@
 
 > English · [中文](./README.zh.md)
 
+<p align="center">
+  <img src="./docs/screenshots/player.png" alt="Zendia player UI — late-night dark theme with retro LED clock, ON AIR badge, white Now Playing card, and chat-style DJ timeline" width="320">
+</p>
+
 Personal AI radio: understands listening habits, plans voice segments, and speaks
 between songs like a lightweight DJ.
 
