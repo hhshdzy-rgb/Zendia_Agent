@@ -24,7 +24,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #4a4a4a, #1a1a1a);
+  background: linear-gradient(135deg, var(--brand), var(--brand-deep));
   display: block;
   cursor: pointer;
   transition: transform 120ms ease;
@@ -40,7 +40,7 @@
   font-size: 26px;
   line-height: 1;
   letter-spacing: 0.06em;
-  color: var(--text);
+  color: var(--brand);
 }
 
 /* Shared by OnAirBadge dot, StationFooter status, and any other future
@@ -285,7 +285,7 @@
 }
 
 .np-like.is-liked {
-  color: #e2455a;
+  color: var(--brand);
 }
 
 .np-dislike {
@@ -592,12 +592,17 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: var(--text);
+  background: var(--brand);
   color: var(--bg);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: transform 120ms ease, opacity 120ms ease;
+  transition: transform 120ms ease, opacity 120ms ease, background 120ms ease;
+}
+
+.chat-input-send:not(:disabled):hover {
+  background: var(--brand-deep);
+  color: #fff;
 }
 
 .chat-input-send:disabled {

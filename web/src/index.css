@@ -12,6 +12,8 @@
   --accent: #2dd4a7;           /* on-air / speaking green */
   --accent-bg: rgba(45, 212, 167, 0.18);
   --accent-amber: #d4a843;     /* thinking / standby amber */
+  --brand: #ff8a3d;            /* tangerine — wordmark + brand-y bits */
+  --brand-deep: #b04a10;       /* shaded tangerine for gradients */
   --highlight: #b5f0c9;        /* current word highlight */
   --tab-active: #ffffff;
   --tab-inactive: #6b6b6b;
