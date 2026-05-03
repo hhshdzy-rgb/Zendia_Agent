@@ -1,7 +1,7 @@
-import type { ClientEvent, Message, Song } from '../types'
+import type { ClientEvent, Message, Song, WeatherSnapshot } from '../types'
 
 export type ServerEvent =
-  | { type: 'hello'; sessionStartedAt: number }
+  | { type: 'hello'; sessionStartedAt: number; weather?: WeatherSnapshot }
   | { type: 'song'; song: Song }
   | { type: 'song_progress'; positionSec: number }
   | { type: 'tts_state'; state: 'speaking' | 'idle' }
@@ -9,6 +9,7 @@ export type ServerEvent =
   | { type: 'message_new'; message: Message }
   | { type: 'message_word'; id: string; wordIdx: number }
   | { type: 'message_done'; id: string }
+  | { type: 'weather'; weather: WeatherSnapshot }
 
 export type EventStream = {
   subscribe: (handler: (e: ServerEvent) => void) => () => void

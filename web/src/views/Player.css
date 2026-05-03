@@ -125,6 +125,35 @@
   color: var(--text-faint);
 }
 
+/* ---------- Weather strip (under the clock) ---------- */
+.weather-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 2px 16px 12px;
+  font-family: var(--pixel);
+  font-size: 16px;
+  letter-spacing: 0.14em;
+  color: var(--text-dim);
+  user-select: none;
+}
+
+.weather-strip svg {
+  flex-shrink: 0;
+  color: var(--text);
+  /* nudges the icon down a hair so it sits centered with the LED text */
+  margin-bottom: -1px;
+}
+
+.weather-strip-place {
+  color: var(--text);
+}
+
+.weather-strip-dot {
+  color: var(--text-faint);
+}
+
 /* ---------- ON AIR badge ---------- */
 .on-air {
   display: inline-flex;

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Header from '../components/Header'
 import ClockHero from '../components/ClockHero'
+import WeatherStrip from '../components/WeatherStrip'
 import OnAirBadge from '../components/OnAirBadge'
 import DJWaveform from '../components/DJWaveform'
 import NowPlayingCard from '../components/NowPlayingCard'
@@ -345,6 +346,7 @@ export default function Player() {
       <audio ref={ttsAudioRef} preload="auto" />
       <Header />
       <ClockHero />
+      <WeatherStrip weather={state.weather} />
       <OnAirBadge speaking={state.speaking || Boolean(playingTts)} thinking={state.thinking} />
       <DJWaveform speaking={state.speaking || Boolean(playingTts)} analyser={ttsAnalyser} />
       <NowPlayingCard

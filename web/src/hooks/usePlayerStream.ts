@@ -55,7 +55,13 @@ export function usePlayerStream(): PlayerStream {
 function reduce(state: PlayerState, e: ServerEvent): PlayerState {
   switch (e.type) {
     case 'hello':
-      return { ...state, sessionStartedAt: e.sessionStartedAt }
+      return {
+        ...state,
+        sessionStartedAt: e.sessionStartedAt,
+        ...(e.weather ? { weather: e.weather } : {}),
+      }
+    case 'weather':
+      return { ...state, weather: e.weather }
     case 'song':
       return { ...state, song: e.song }
     case 'song_progress':

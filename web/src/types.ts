@@ -34,6 +34,13 @@ export type ClientEvent =
   | { type: 'dislike_song'; songId: number; title?: string; artist?: string }
   | { type: 'ping' }
 
+export type WeatherSnapshot = {
+  text: string
+  place: string
+  tempC: number
+  code: number  // WMO code; client maps to icon
+}
+
 export type PlayerState = {
   sessionStartedAt: number
   speaking: boolean
@@ -42,4 +49,5 @@ export type PlayerState = {
   thinking: boolean
   song: Song
   messages: Message[]
+  weather?: WeatherSnapshot
 }
