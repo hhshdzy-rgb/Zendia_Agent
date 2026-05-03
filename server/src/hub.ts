@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import type { WebSocket } from 'ws'
 import { messagesRepo } from './db.js'
 import { setSongLiked } from './ncm.js'
-import type { ClientEvent, Message, ServerEvent, Song } from './types.js'
+import type { ClientEvent, Message, ServerEvent, Song, WeatherSnapshot } from './types.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const SERVER_ROOT = path.resolve(__dirname, '..')
@@ -28,6 +28,7 @@ export class Hub {
   private currentSongEnded = false
   private handoffReason: 'ended' | 'skip' | null = null
   private thinking = false
+  private weather: WeatherSnapshot | null = null
   private songEndedListeners = new Set<() => void>()
   private userMessageListeners = new Set<(text: string) => void>()
   // Trim absurdly long inputs so a single user can't blow up token budget
@@ -204,11 +205,20 @@ export class Hub {
     ws.on('error', () => this.clients.delete(ws))
   }
 
+  setWeather(snapshot: WeatherSnapshot): void {
+    this.weather = snapshot
+    this.emit({ type: 'weather', weather: snapshot })
+  }
+
   private sendSnapshot(ws: WebSocket): void {
     const send = (e: ServerEvent) => {
       if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(e))
     }
-    send({ type: 'hello', sessionStartedAt: this.sessionStartedAt })
+    send({
+      type: 'hello',
+      sessionStartedAt: this.sessionStartedAt,
+      ...(this.weather ? { weather: this.weather } : {}),
+    })
     if (this.song) send({ type: 'song', song: this.song })
     for (const message of this.messages) {
       send({ type: 'message_new', message })
@@ -262,6 +272,9 @@ export class Hub {
         return
       }
       case 'hello':
+        return
+      case 'weather':
+        this.weather = event.weather
         return
     }
   }

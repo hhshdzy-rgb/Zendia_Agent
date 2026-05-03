@@ -9,6 +9,7 @@ import { attachStreamWs } from './stream/wsServer.js'
 import { startScriptedDJ } from './stream/script.js'
 import { startLiveDJ } from './stream/live.js'
 import { buildApiRouter } from './api.js'
+import { getWeather } from './weather.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const SERVER_ROOT = path.resolve(__dirname, '..')
@@ -62,8 +63,19 @@ attachStreamWs(server, hub)
 const DJ_MODE = process.env.ZENDIA_DJ ?? 'live'
 const stopDj = DJ_MODE === 'script' ? startScriptedDJ(hub) : startLiveDJ(hub)
 
+// Initial weather + periodic refresh. 15-min interval is just longer than
+// the in-module cache (10 min), so the cache gets refilled on this clock.
+const WEATHER_REFRESH_MS = 15 * 60 * 1000
+async function refreshWeather() {
+  const snap = await getWeather()
+  if (snap) hub.setWeather(snap)
+}
+void refreshWeather()
+const weatherTimer = setInterval(() => void refreshWeather(), WEATHER_REFRESH_MS)
+
 const shutdown = () => {
   console.log('[zendia] shutting down')
+  clearInterval(weatherTimer)
   stopDj()
   server.close(() => process.exit(0))
 }

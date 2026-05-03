@@ -187,7 +187,7 @@ export function startLiveDJ(hub: Hub): () => void {
     const ctx = buildContext({
       environment: {
         now: new Date(),
-        ...(weather ? { weather } : {}),
+        ...(weather ? { weather: weather.text } : {}),
       },
     })
 
@@ -331,7 +331,7 @@ export function startLiveDJ(hub: Hub): () => void {
     const ctx = buildContext({
       environment: {
         now: new Date(),
-        ...(weather ? { weather } : {}),
+        ...(weather ? { weather: weather.text } : {}),
       },
       userInput: `The listener skipped into "${song.title}" by ${song.artist}. Say a short DJ intro for this exact track. Do not choose another song; play must be [].`,
       historyLimit: 4,

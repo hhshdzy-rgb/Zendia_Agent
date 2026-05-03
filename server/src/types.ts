@@ -31,8 +31,15 @@ export type Message = {
   wordTimings?: WordTiming[]
 }
 
+export type WeatherSnapshot = {
+  text: string
+  place: string
+  tempC: number
+  code: number  // WMO code; client maps to icon
+}
+
 export type ServerEvent =
-  | { type: 'hello'; sessionStartedAt: number }
+  | { type: 'hello'; sessionStartedAt: number; weather?: WeatherSnapshot }
   | { type: 'song'; song: Song }
   | { type: 'song_progress'; positionSec: number }
   | { type: 'tts_state'; state: 'speaking' | 'idle' }
@@ -43,6 +50,9 @@ export type ServerEvent =
   | { type: 'message_new'; message: Message }
   | { type: 'message_word'; id: string; wordIdx: number }
   | { type: 'message_done'; id: string }
+  // Pushed on initial fetch + every periodic refresh, so long-lived
+  // clients see weather change as the day moves.
+  | { type: 'weather'; weather: WeatherSnapshot }
 
 export type ClientEvent =
   | { type: 'song_ended'; id?: number }

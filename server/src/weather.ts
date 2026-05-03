@@ -21,8 +21,15 @@ const ENV_LAT = parseLatLon(process.env.WEATHER_LAT)
 const ENV_LON = parseLatLon(process.env.WEATHER_LON)
 const ENV_PLACE = process.env.WEATHER_PLACE?.trim() || ''
 
+export type WeatherSnapshot = {
+  text: string  // formatted "Boston — overcast, 10°C" — used by both DJ prompt and UI
+  place: string // city label, may be empty
+  tempC: number
+  code: number  // WMO weather code, used by the client to pick an icon
+}
+
 type Coords = { lat: number; lon: number; place: string }
-type Cached = { text: string; fetchedAt: number }
+type Cached = { snapshot: WeatherSnapshot; fetchedAt: number }
 
 let weatherCache: Cached | null = null
 let coordsPromise: Promise<Coords | null> | null = null
@@ -64,11 +71,11 @@ async function autoLocate(): Promise<Coords | null> {
   }
 }
 
-export async function getWeather(): Promise<string | undefined> {
+export async function getWeather(): Promise<WeatherSnapshot | undefined> {
   const coords = await resolveCoords()
   if (!coords) return undefined
   if (weatherCache && Date.now() - weatherCache.fetchedAt < WEATHER_TTL_MS) {
-    return weatherCache.text
+    return weatherCache.snapshot
   }
 
   const url =
@@ -88,18 +95,23 @@ export async function getWeather(): Promise<string | undefined> {
     const code = data?.current?.weather_code
     if (typeof tempC !== 'number' || typeof code !== 'number') {
       console.warn('[weather] unexpected payload shape; reusing cache if any')
-      return weatherCache?.text
+      return weatherCache?.snapshot
     }
-    const text = formatSnapshot(code, tempC, coords.place)
-    weatherCache = { text, fetchedAt: Date.now() }
-    return text
+    const snapshot: WeatherSnapshot = {
+      text: formatText(code, tempC, coords.place),
+      place: coords.place,
+      tempC,
+      code,
+    }
+    weatherCache = { snapshot, fetchedAt: Date.now() }
+    return snapshot
   } catch (err) {
     console.warn(`[weather] fetch failed: ${(err as Error).message}; reusing cache if any`)
-    return weatherCache?.text
+    return weatherCache?.snapshot
   }
 }
 
-function formatSnapshot(code: number, tempC: number, place: string): string {
+function formatText(code: number, tempC: number, place: string): string {
   const desc = describeWmo(code)
   const t = `${Math.round(tempC)}°C`
   return place ? `${place} — ${desc}, ${t}` : `${desc}, ${t}`
