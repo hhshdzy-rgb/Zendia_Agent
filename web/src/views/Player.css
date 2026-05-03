@@ -258,9 +258,9 @@
 .now-playing {
   background: var(--card);
   color: var(--card-fg);
-  border-radius: 16px;
+  border-radius: 14px;
   margin: 0 16px;
-  padding: 22px 22px 18px;
+  padding: 12px 16px 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
@@ -271,18 +271,25 @@
 }
 
 .np-title {
-  font-size: 28px;
-  line-height: 1.15;
+  font-size: 18px;
+  line-height: 1.2;
   font-weight: 600;
   letter-spacing: -0.01em;
-  margin: 0 0 6px;
+  margin: 0 0 2px;
   color: var(--card-fg);
+  /* Single-line, ellipsis on overflow. Long titles deprioritised. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .np-sub {
-  font-size: 14px;
+  font-size: 12px;
   color: var(--card-sub);
-  margin-bottom: 18px;
+  margin-bottom: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .np-sep {
@@ -297,8 +304,8 @@
 }
 
 .np-like {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
@@ -322,8 +329,8 @@
 }
 
 .np-dislike {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
@@ -348,8 +355,8 @@
 }
 
 .np-toggle {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: #08060d;
   color: #fff;
