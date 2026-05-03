@@ -1,5 +1,7 @@
 import express from 'express'
+import { existsSync } from 'node:fs'
 import http from 'node:http'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Hub } from './hub.js'
@@ -33,6 +35,27 @@ app.use(
   }),
 )
 
+// Production mode: if web/dist exists (i.e. `npm run build` was run from
+// the web/ folder), serve it as static + add a SPA fallback so React
+// Router URLs like /profile and /settings work on hard refresh. In dev
+// you run Vite separately on :5173 and dist/ won't exist — server is
+// API-only then.
+const WEB_DIST = path.resolve(SERVER_ROOT, '..', 'web', 'dist')
+const SERVE_PWA = existsSync(WEB_DIST)
+if (SERVE_PWA) {
+  app.use(express.static(WEB_DIST, { index: 'index.html' }))
+  app.get('*', (req, res, next) => {
+    if (
+      req.path.startsWith('/api') ||
+      req.path.startsWith('/tts') ||
+      req.path === '/healthz'
+    ) {
+      return next()
+    }
+    res.sendFile(path.join(WEB_DIST, 'index.html'))
+  })
+}
+
 const server = http.createServer(app)
 attachStreamWs(server, hub)
 
@@ -47,7 +70,19 @@ const shutdown = () => {
 process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)
 
-server.listen(PORT, () => {
-  console.log(`[zendia] listening on http://localhost:${PORT}`)
+// Bind to 0.0.0.0 so LAN devices can reach the player at the host's IP.
+// Prints localhost + every non-internal IPv4 it finds so the user knows
+// which URL to open from a phone / iPad on the same network.
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`[zendia] WS /stream attached, DJ mode = ${DJ_MODE}`)
+  console.log(`[zendia] PWA serve: ${SERVE_PWA ? 'on (web/dist found)' : 'off (api-only — run Vite for the PWA)'}`)
+  console.log(`[zendia] listening on:`)
+  console.log(`           http://localhost:${PORT}`)
+  for (const ifaces of Object.values(os.networkInterfaces())) {
+    for (const iface of ifaces ?? []) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        console.log(`           http://${iface.address}:${PORT}`)
+      }
+    }
+  }
 })
