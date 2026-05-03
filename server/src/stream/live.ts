@@ -28,9 +28,14 @@ const FAST_SKIP_QUERIES = (
   .map((q) => q.trim())
   .filter(Boolean)
 
+// Shown for the ~10s between server boot and the first Claude-resolved
+// song. We keep a streamUrl so the play button is functional (also lets
+// the audio context unlock on first user gesture) but the title /
+// subtitle reads as a clear "system idle" state rather than pretending
+// to be a real catalog entry.
 const FALLBACK_SONG: Song = {
-  title: 'Monday Night Exhale',
-  artist: 'SoundHelix',
+  title: 'Start',
+  artist: 'Zendia',
   album: 'Demo',
   streamUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
   durationSec: 0,
