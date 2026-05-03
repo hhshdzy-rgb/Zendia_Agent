@@ -137,11 +137,21 @@ cd server && npm run llm:smoke
 
 ## Weather
 
-Optional. When `WEATHER_LAT` / `WEATHER_LON` are set in `server/.env`, the DJ
-context block includes a current-conditions line so Claude can reference what's
-happening outside (e.g. "raining since lunch — let's keep it mellow"). Powered
-by [Open-Meteo](https://open-meteo.com) — no API key, free, global coverage.
-Cached for 10 minutes per process. Without coords, weather is silently skipped.
+The DJ context block includes a current-conditions line so Claude can
+reference what's happening outside (e.g. "raining since lunch — let's keep
+it mellow"). Powered by [Open-Meteo](https://open-meteo.com) — no API key,
+free, global coverage. Cached for 10 minutes per process.
+
+Coordinate resolution priority:
+
+1. `WEATHER_LAT` + `WEATHER_LON` env vars (explicit; wins).
+2. Auto-detect via outbound IP geolocation (api.ipify.org → ipapi.co).
+   City-level accuracy, no setup needed.
+3. Skip — DJ just doesn't get a weather line.
+
+So out of the box, weather works without any config. Override only if
+auto-detect lands in the wrong city (VPN, ISP routing) or you want a
+specific spot:
 
 ```bash
 WEATHER_LAT=39.91

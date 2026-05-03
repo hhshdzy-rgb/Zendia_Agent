@@ -146,21 +146,31 @@ OPENAI_MODEL=deepseek-chat
 切完跑 `cd server && npm run llm:smoke`,看到 `[llm smoke] text:` 后面有
 JSON 输出就说明这条链路通了。
 
-## 天气(可选)
+## 天气
 
-设了经纬度,DJ context 里就会带一行实时天气,让 Claude 偶尔聊一下窗外
-("下了一下午雨,这首慢歌正合适")。用的是 [Open-Meteo](https://open-meteo.com)
-— **不用 API key、免费、国内能直连**。每个进程缓存 10 分钟,不会每首歌都打。
+DJ context 里会带一行实时天气,让 Claude 偶尔聊一下窗外
+("下了一下午雨,这首慢歌正合适")。用的是
+[Open-Meteo](https://open-meteo.com) — **不用 API key、免费、国内能直连**。
+每个进程缓存 10 分钟,不会每首歌都打。
+
+**经纬度从哪儿来**(按优先级):
+
+1. `WEATHER_LAT` + `WEATHER_LON` 显式设了 → 用这个
+2. 没设 → 启动时自动 GET 公网 IP(`api.ipify.org`)+ IP 地理(`ipapi.co`),
+   城市级精度,无配置
+3. 都失败 → 跳过
+
+也就是说**默认零配置**就能跑。只在两种情况下需要手动设:
+- VPN 出口在错误城市
+- 想固定某个地点(比如老家、办公室)
 
 ```bash
 WEATHER_LAT=39.91
 WEATHER_LON=116.40
-WEATHER_PLACE=Beijing   # 可选,只是 prompt 里的标签
+WEATHER_PLACE=Beijing   # 可选 prompt 文案,不设就用 IP 查到的城市
 ```
 
-不设这三个就当没装这功能,`weather` 那行 context 会自动跳过。
-
-经纬度去 https://open-meteo.com 或任意地图查一下。验证:
+验证:
 
 ```bash
 cd server && npm run weather:smoke
