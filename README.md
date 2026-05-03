@@ -1,5 +1,7 @@
 # Zendia
 
+> English · [中文](./README.zh.md)
+
 Personal AI radio: understands listening habits, plans voice segments, and speaks
 between songs like a lightweight DJ.
 
