@@ -116,6 +116,21 @@ export async function getSongUrl(
   return { url: first.url, ...(first.expi !== undefined && { expiresAt: first.expi }) }
 }
 
+// Toggle the heart on the user's "我喜欢的音乐" playlist for a given track.
+// `liked = true` adds; `liked = false` removes.
+export async function setSongLiked(songId: number, liked: boolean): Promise<{ ok: boolean }> {
+  ensureCookieWarning()
+  if (!NCM_COOKIE) throw new Error('NCM_COOKIE is required to like songs')
+  const res = await api.like({
+    id: songId,
+    like: liked,
+    cookie: NCM_COOKIE,
+  })
+  // NCM responds with { code: 200, ... } on success.
+  const body = res.body as { code?: number }
+  return { ok: body.code === 200 }
+}
+
 export async function getCurrentNcmUser(): Promise<{ userId: number; nickname?: string }> {
   ensureCookieWarning()
   if (!NCM_COOKIE) throw new Error('NCM_COOKIE is required to read user playlists')

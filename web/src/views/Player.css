@@ -183,9 +183,34 @@
 
 .np-controls {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr auto auto;
   align-items: center;
   gap: 12px;
+}
+
+.np-like {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #08060d;
+  background: transparent;
+  transition: color 160ms ease, transform 120ms ease, background 160ms ease;
+}
+
+.np-like:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.np-like:not(:disabled):active {
+  transform: scale(0.92);
+}
+
+.np-like.is-liked {
+  color: #e2455a;
 }
 
 .np-toggle {

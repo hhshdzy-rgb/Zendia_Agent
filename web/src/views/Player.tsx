@@ -29,6 +29,10 @@ export default function Player() {
     const n = Number(stored)
     return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 1
   })
+  // Per-session liked song ids. Optimistic — updated locally on click,
+  // persisted to NCM by the server. Reload clears this; sync from NCM
+  // on connect is a future feature.
+  const [likedSongIds, setLikedSongIds] = useState<Set<number>>(() => new Set())
   // Local state for the message whose TTS audio we are *currently playing*.
   // Decoupled from the server's status='speaking' window because that window
   // is shorter than the actual audio (server estimates 220ms/word, real Fish
@@ -250,6 +254,22 @@ export default function Player() {
     send({ type: 'skip_song', ...(state.song.id !== undefined && { id: state.song.id }) })
   }
 
+  const songId = state.song.id
+  const isLiked = songId !== undefined && likedSongIds.has(songId)
+  const toggleLike = () => {
+    if (songId === undefined) return
+    const nextLiked = !isLiked
+    // Optimistic flip; server will persist via NCM. No rollback if NCM
+    // fails — keep it simple, error logging happens server-side.
+    setLikedSongIds((prev) => {
+      const next = new Set(prev)
+      if (nextLiked) next.add(songId)
+      else next.delete(songId)
+      return next
+    })
+    send({ type: 'like_song', songId, liked: nextLiked })
+  }
+
   const sendChat = (text: string) => {
     // Immediate "I heard you" feedback: stop the current DJ utterance
     // (audio + highlight) the moment we send. Server-side dj_thinking
@@ -285,7 +305,9 @@ export default function Player() {
       <NowPlayingCard
         song={songWithLiveTime}
         paused={paused}
+        liked={isLiked}
         onTogglePlay={togglePlay}
+        onToggleLike={toggleLike}
       />
       <MessageTimeline messages={state.messages} playingOverride={ttsHighlight} />
       <div className="player-footer">

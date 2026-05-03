@@ -1,6 +1,14 @@
+import { appendFileSync, existsSync, mkdirSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { WebSocket } from 'ws'
 import { messagesRepo } from './db.js'
+import { setSongLiked } from './ncm.js'
 import type { ClientEvent, Message, ServerEvent, Song } from './types.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const SERVER_ROOT = path.resolve(__dirname, '..')
+const LEARNED_LIKES_PATH = path.join(SERVER_ROOT, 'user', 'learned-likes.md')
 
 // Single shared broadcaster. State is the union of the most recent
 // snapshot-worthy events: song, speaking state, and recent messages.
@@ -84,8 +92,48 @@ export class Hub {
         this.userMessageListeners.forEach((fn) => fn(truncated))
         return
       }
+      case 'like_song': {
+        const { songId, liked } = event
+        if (!songId || !Number.isFinite(songId)) return
+        // Fire-and-forget: write the local "learned" record first (cheap,
+        // synchronous) so model context catches it next turn even if the
+        // NCM API is slow / fails. Then call NCM.
+        if (liked && this.song?.id === songId) {
+          this.appendLearnedLike(this.song.title, this.song.artist)
+        }
+        setSongLiked(songId, liked)
+          .then((res) => {
+            if (!res.ok) {
+              console.warn(`[hub] NCM like(${songId}, ${liked}) returned non-200`)
+            } else {
+              console.log(`[hub] NCM like(${songId}, ${liked}) ok`)
+            }
+          })
+          .catch((err) => {
+            console.warn(`[hub] NCM like threw:`, (err as Error).message)
+          })
+        return
+      }
       case 'ping':
         return
+    }
+  }
+
+  private appendLearnedLike(title: string, artist: string): void {
+    try {
+      const dir = path.dirname(LEARNED_LIKES_PATH)
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+      const stamp = new Date().toISOString().slice(0, 10)
+      const line = `- ${stamp}: ${title} — ${artist}\n`
+      if (!existsSync(LEARNED_LIKES_PATH)) {
+        appendFileSync(
+          LEARNED_LIKES_PATH,
+          `# Learned likes\n\nSongs the listener heart-ed in-app. Treat as strong signal for recommendations.\n\n`,
+        )
+      }
+      appendFileSync(LEARNED_LIKES_PATH, line)
+    } catch (err) {
+      console.warn('[hub] failed to append learned-like:', (err as Error).message)
     }
   }
 
