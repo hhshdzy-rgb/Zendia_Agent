@@ -1,10 +1,13 @@
 import { useEffect, useRef } from 'react'
-import { formatTime } from '../lib/format'
+import { formatMessageClock } from '../lib/format'
 import { tokenize } from '../lib/tokenize'
 import type { Message } from '../types'
 
 type Props = {
   messages: Message[]
+  /** Server's sessionStartedAt (epoch ms). Used to convert each message's
+      session-relative ts into a wall-clock HH:MM stamp for display. */
+  sessionStartedAt: number
   // Local playback override keeps the highlighted word aligned with the
   // audio element, even if the server has already marked the message done.
   playingOverride?: { id: string; wordIdx: number } | null
@@ -13,7 +16,12 @@ type Props = {
   onReplay?: (m: Message) => void
 }
 
-export default function MessageTimeline({ messages, playingOverride, onReplay }: Props) {
+export default function MessageTimeline({
+  messages,
+  sessionStartedAt,
+  playingOverride,
+  onReplay,
+}: Props) {
   const sentinelRef = useRef<HTMLDivElement>(null)
   const lastSpeakingIdRef = useRef<string | null>(null)
   const speakingId =
@@ -53,7 +61,9 @@ export default function MessageTimeline({ messages, playingOverride, onReplay }:
               <header className="message-meta">
                 <span className="message-author">{author}</span>
                 <span className="message-dot">/</span>
-                <span className="message-ts mono">{formatTime(m.ts)}</span>
+                <span className="message-ts mono">
+                  {formatMessageClock(sessionStartedAt, m.ts)}
+                </span>
                 {!isUser && m.audioUrl && onReplay && (
                   <button
                     type="button"

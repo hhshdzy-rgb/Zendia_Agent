@@ -357,6 +357,7 @@ export default function Player() {
       />
       <MessageTimeline
         messages={state.messages}
+        sessionStartedAt={state.sessionStartedAt}
         playingOverride={ttsHighlight}
         onReplay={replayMessage}
       />
