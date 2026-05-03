@@ -167,12 +167,18 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
+/* Center the title/subtitle block; CJK & long English titles read better
+   centered when the row of controls below them is full-width. */
+.now-playing-meta {
+  text-align: center;
+}
+
 .np-title {
   font-size: 28px;
-  line-height: 1.1;
+  line-height: 1.15;
   font-weight: 600;
   letter-spacing: -0.01em;
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   color: var(--card-fg);
 }
 
