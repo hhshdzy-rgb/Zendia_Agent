@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
 import { formatMessageClock } from '../lib/format'
-import { tokenize } from '../lib/tokenize'
 import type { Message } from '../types'
 
 type Props = {
@@ -8,8 +7,9 @@ type Props = {
   /** Server's sessionStartedAt (epoch ms). Used to convert each message's
       session-relative ts into a wall-clock HH:MM stamp for display. */
   sessionStartedAt: number
-  // Local playback override keeps the highlighted word aligned with the
-  // audio element, even if the server has already marked the message done.
+  // Marks which message the local TTS audio is currently playing, even if
+  // the server already flipped the message's own status to done. The id is
+  // the only field we read; wordIdx is legacy from per-word highlight.
   playingOverride?: { id: string; wordIdx: number } | null
   /** Re-play a DJ message's cached TTS audio. Only DJ messages with
       audioUrl render a Replay button. */
@@ -41,13 +41,6 @@ export default function MessageTimeline({
         const isUser = m.type === 'user_chat'
         const isOverride = !isUser && playingOverride?.id === m.id
         const visualStatus = isOverride ? 'speaking' : m.status
-        const highlightIdx = isUser
-          ? undefined
-          : isOverride
-            ? playingOverride!.wordIdx
-            : m.status === 'speaking'
-              ? m.highlightWord
-              : undefined
         const author = isUser ? '你' : 'Zendia'
         const avatarLetter = isUser ? '你' : 'Z'
         const variantClass = isUser ? 'message-user-chat' : 'message-dj-say'
@@ -77,7 +70,7 @@ export default function MessageTimeline({
                   </button>
                 )}
               </header>
-              <p className="message-body">{renderBody(m.text, highlightIdx)}</p>
+              <p className="message-body">{m.text}</p>
             </div>
           </article>
         )
@@ -99,19 +92,4 @@ function ReplayIcon() {
       <path d="M7 4.5v15l13-7.5z" />
     </svg>
   )
-}
-
-function renderBody(text: string, highlightIdx: number | undefined) {
-  const tokens = tokenize(text)
-  let wordIdx = -1
-  return tokens.map((tok, i) => {
-    if (/^\s+$/.test(tok)) return <span key={i}>{tok}</span>
-    wordIdx += 1
-    const isHighlight = highlightIdx !== undefined && wordIdx === highlightIdx
-    return (
-      <span key={i} className={isHighlight ? 'word word-highlight' : 'word'}>
-        {tok}
-      </span>
-    )
-  })
 }

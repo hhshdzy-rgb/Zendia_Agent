@@ -434,10 +434,13 @@
 }
 
 .message-speaking .message-body {
-  color: #08060d;
+  /* Whole body lights up in the on-air green while the TTS plays — the
+     old per-character karaoke highlight looked choppy on CJK. */
+  color: var(--accent);
   font-weight: 500;
   font-size: 22px;
   line-height: 1.4;
+  transition: color 200ms ease;
 }
 .message-done .message-body { color: rgba(8, 6, 13, 0.32); }
 .message-pending .message-body { color: rgba(8, 6, 13, 0.55); }
@@ -479,20 +482,6 @@
     opacity: 1;
     transform: none;
   }
-}
-
-.word {
-  /* Short transition so the cursor "snaps" from one word to the next
-     instead of leaving a soft trail of half-faded predecessors — the
-     karaoke-style discrete jump effect. */
-  transition: background 60ms linear;
-  border-radius: 4px;
-  padding: 0 1px;
-}
-
-.word-highlight {
-  background: var(--highlight);
-  padding: 0 3px;
 }
 
 /* ---------- User-chat variant: right-aligned, green author label ---------- */
