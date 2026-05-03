@@ -45,3 +45,4 @@ state.db-wal
 cache/tts/
 server/user/ncm-likes.md
 server/user/learned-likes.md
+server/user/disliked.md

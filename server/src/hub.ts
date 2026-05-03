@@ -9,6 +9,7 @@ import type { ClientEvent, Message, ServerEvent, Song } from './types.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const SERVER_ROOT = path.resolve(__dirname, '..')
 const LEARNED_LIKES_PATH = path.join(SERVER_ROOT, 'user', 'learned-likes.md')
+const DISLIKED_PATH = path.join(SERVER_ROOT, 'user', 'disliked.md')
 
 // Single shared broadcaster. State is the union of the most recent
 // snapshot-worthy events: song, speaking state, and recent messages.
@@ -114,8 +115,50 @@ export class Hub {
           })
         return
       }
+      case 'dislike_song': {
+        const { songId, title, artist } = event
+        if (!songId || !Number.isFinite(songId)) return
+        // Persist as a strong negative signal in the user corpus so the
+        // model stops recommending it. Resolve title/artist from current
+        // song if the client didn't include them.
+        const fallbackTitle = this.song?.id === songId ? this.song.title : 'unknown'
+        const fallbackArtist = this.song?.id === songId ? this.song.artist : 'unknown'
+        this.appendDislike(
+          songId,
+          (title?.trim() || fallbackTitle) ?? 'unknown',
+          (artist?.trim() || fallbackArtist) ?? 'unknown',
+        )
+        // Trigger a fast skip if it's the currently-playing track. Same
+        // path the Skip button uses, so the live loop does the right thing
+        // (fastSkipNow → speakSkipIntro).
+        if (this.song?.id === songId) {
+          this.currentSongEnded = true
+          this.handoffReason = 'skip'
+          this.songEndedListeners.forEach((fn) => fn())
+        }
+        return
+      }
       case 'ping':
         return
+    }
+  }
+
+  private appendDislike(songId: number, title: string, artist: string): void {
+    try {
+      const dir = path.dirname(DISLIKED_PATH)
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+      const stamp = new Date().toISOString().slice(0, 10)
+      const line = `- ${stamp}: ${title} — ${artist} (id ${songId})\n`
+      if (!existsSync(DISLIKED_PATH)) {
+        appendFileSync(
+          DISLIKED_PATH,
+          `# Disliked songs\n\nThe listener pressed "not for me" on these. **Do not recommend any track from this list — find something different.**\n\n`,
+        )
+      }
+      appendFileSync(DISLIKED_PATH, line)
+      console.log(`[hub] dislike persisted: ${title} — ${artist}`)
+    } catch (err) {
+      console.warn('[hub] failed to append disliked:', (err as Error).message)
     }
   }
 

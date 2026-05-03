@@ -49,4 +49,5 @@ export type ClientEvent =
   | { type: 'skip_song'; id?: number }
   | { type: 'user_message'; text: string; clientMsgId: string }
   | { type: 'like_song'; songId: number; liked: boolean }
+  | { type: 'dislike_song'; songId: number; title?: string; artist?: string }
   | { type: 'ping' }

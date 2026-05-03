@@ -7,6 +7,7 @@ type Props = {
   liked: boolean
   onTogglePlay: () => void
   onToggleLike: () => void
+  onDislike: () => void
 }
 
 export default function NowPlayingCard({
@@ -15,6 +16,7 @@ export default function NowPlayingCard({
   liked,
   onTogglePlay,
   onToggleLike,
+  onDislike,
 }: Props) {
   const pct =
     song.durationSec > 0 ? Math.min(100, (song.positionSec / song.durationSec) * 100) : 0
@@ -56,8 +58,35 @@ export default function NowPlayingCard({
         >
           <HeartIcon filled={liked} />
         </button>
+        <button
+          type="button"
+          className="np-dislike"
+          aria-label="Not for me"
+          title="Not for me — skip + remember"
+          disabled={!canLike}
+          onClick={onDislike}
+        >
+          <XIcon />
+        </button>
       </div>
     </div>
+  )
+}
+
+function XIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M6 6l12 12M6 18L18 6" />
+    </svg>
   )
 }
 

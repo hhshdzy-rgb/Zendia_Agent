@@ -270,6 +270,32 @@ export default function Player() {
     send({ type: 'like_song', songId, liked: nextLiked })
   }
 
+  const dislikeCurrent = () => {
+    if (songId === undefined) return
+    // Stop the current music + DJ immediately so the listener doesn't
+    // have to keep hearing what they just said they don't want. The
+    // server-side handler triggers the same fast-skip path the Skip
+    // button uses, plus persists the dislike to user/disliked.md.
+    const audio = audioRef.current
+    if (audio) {
+      audio.pause()
+      audio.currentTime = 0
+    }
+    const tts = ttsAudioRef.current
+    if (tts) {
+      tts.pause()
+      tts.currentTime = 0
+    }
+    setPlayingTts(null)
+    setTtsHighlight(null)
+    send({
+      type: 'dislike_song',
+      songId,
+      title: state.song.title,
+      artist: state.song.artist,
+    })
+  }
+
   const sendChat = (text: string) => {
     // Immediate "I heard you" feedback: stop the current DJ utterance
     // (audio + highlight) the moment we send. Server-side dj_thinking
@@ -308,6 +334,7 @@ export default function Player() {
         liked={isLiked}
         onTogglePlay={togglePlay}
         onToggleLike={toggleLike}
+        onDislike={dislikeCurrent}
       />
       <MessageTimeline messages={state.messages} playingOverride={ttsHighlight} />
       <div className="player-footer">
