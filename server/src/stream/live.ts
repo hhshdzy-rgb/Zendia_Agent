@@ -5,6 +5,7 @@ import type { Hub } from '../hub.js'
 import { getSongUrl, searchSong } from '../ncm.js'
 import { synthesize } from '../tts.js'
 import type { Song, WordTiming } from '../types.js'
+import { getWeather } from '../weather.js'
 
 // Live DJ runtime:
 // 1. build context + directive
@@ -182,10 +183,11 @@ export function startLiveDJ(hub: Hub): () => void {
     const userMessage = pendingUserMessage
     pendingUserMessage = null
 
+    const weather = await getWeather()
     const ctx = buildContext({
       environment: {
         now: new Date(),
-        weather: 'overcast, cool; placeholder',
+        ...(weather ? { weather } : {}),
       },
     })
 
@@ -325,10 +327,11 @@ export function startLiveDJ(hub: Hub): () => void {
     skipIntroInFlight = true
     turnInFlight = true
 
+    const weather = await getWeather()
     const ctx = buildContext({
       environment: {
         now: new Date(),
-        weather: 'overcast, cool; placeholder',
+        ...(weather ? { weather } : {}),
       },
       userInput: `The listener skipped into "${song.title}" by ${song.artist}. Say a short DJ intro for this exact track. Do not choose another song; play must be [].`,
       historyLimit: 4,

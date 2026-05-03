@@ -13,6 +13,7 @@
     "ncm:smoke": "tsx src/scripts/ncmSmoke.ts",
     "ncm:likes": "tsx src/scripts/syncNcmLikes.ts",
     "fish:smoke": "tsx src/scripts/fishSmoke.ts",
+    "weather:smoke": "tsx src/scripts/weatherSmoke.ts",
     "chat:smoke": "node src/scripts/sendUserMessage.cjs"
   },
   "dependencies": {
