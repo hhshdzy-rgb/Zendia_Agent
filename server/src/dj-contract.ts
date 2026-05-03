@@ -96,7 +96,7 @@ export function buildDjDirective(
 
   lines.push(
     '',
-    "Match the listener's / song's language. Chinese in → Chinese out. English in → English out.",
+    'Language: ENGLISH only if the song is English. For Chinese / Japanese / Korean / instrumental / unknown — write CHINESE. (In reply mode, match the listener\'s input language: their English → your English, their Chinese → your Chinese.)',
     '',
     'Reply with only a single JSON object. Start with { and end with }.',
     'No prose, no markdown fences, and no quotes around the whole reply.',
