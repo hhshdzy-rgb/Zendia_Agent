@@ -4,37 +4,30 @@ import { buildDjDirective, parseDjReply, type DjReply } from '../dj-contract.js'
 import type { Hub } from '../hub.js'
 import { getSongUrl, searchSong } from '../ncm.js'
 import { synthesize } from '../tts.js'
-import type { Song } from '../types.js'
+import type { Song, WordTiming } from '../types.js'
 
-// Live DJ — replaces the scripted replay with real Claude generations.
-// Each turn:
-//   1. buildContext + buildDjDirective + runClaude
-//   2. parse {say, play, reason, segue}
-//   3. emit message_new + per-word advance + message_done
-//   4. wait, repeat
+// Live DJ runtime:
+// 1. build context + directive
+// 2. call Claude and parse { say, play, reason, segue }
+// 3. resolve the next song and synthesize DJ voice
+// 4. emit song/message events over the hub
 //
-// Failures (subprocess error / parse error / contract violation) are
-// logged and the loop waits MIN_TURN_MS before trying again — never
-// crashes the server, never burns into a tight retry storm.
+// Important handoff rule: when a song has ended and Claude selects the next
+// track, emit the new song as soon as the intro segment begins. The DJ voice
+// then rides over the new track's intro instead of leaving a long silence.
 
 const PER_WORD_MS = 220
-// Default cadence: ~one DJ thought per song. 180s pause + ~15s turn time =
-// roughly 3-3.5 min between utterances, matching how a real station treats
-// commentary as a side channel rather than the main event.
 const PAUSE_BETWEEN_MS = Number(process.env.ZENDIA_DJ_PAUSE_MS ?? 180_000)
 const MIN_TURN_MS = Number(process.env.ZENDIA_DJ_MIN_TURN_MS ?? 8000)
 const CLAUDE_TIMEOUT_MS = 30_000
-// Don't actually swap the song more than this often, no matter what the
-// model recommends. Real radio plays a track to completion (3-5 min) and
-// then segues; without a cooldown the DJ would yank the song every 15-20s.
-// TODO: replace with "wait for audio.ended from a connected client" once
-// the frontend telegraphs that back over WS.
 const MIN_SONG_INTERVAL_MS = Number(process.env.ZENDIA_SONG_INTERVAL_MS ?? 180_000)
+const FAST_SKIP_QUERIES = (
+  process.env.ZENDIA_FAST_SKIP_QUERIES ?? 'Jay Chou Qing Tian|Eason Chan Ten Years|Bread If'
+)
+  .split('|')
+  .map((q) => q.trim())
+  .filter(Boolean)
 
-// Fallback when NCM can't resolve any of the model's play[] entries
-// (region-locked, VIP-only, or the model invented a song that doesn't
-// exist on NCM). We keep streaming the demo until the next turn picks
-// something playable.
 const FALLBACK_SONG: Song = {
   title: 'Monday Night Exhale',
   artist: 'SoundHelix',
@@ -44,8 +37,6 @@ const FALLBACK_SONG: Song = {
   positionSec: 0,
 }
 
-// Wrapper so a Fish Audio failure (no key, 402 balance, network) just
-// means "no voice this turn" instead of crashing the whole loop.
 async function synthesizeSafely(text: string): ReturnType<typeof synthesize> {
   try {
     return await synthesize(text)
@@ -55,9 +46,7 @@ async function synthesizeSafely(text: string): ReturnType<typeof synthesize> {
   }
 }
 
-// Walk the model's queue in order; for each query, search NCM and try
-// to resolve a stream URL on each hit. Return the first that works.
-async function resolvePlayQueue(queries: string[]): Promise<Song | null> {
+async function resolvePlayQueue(queries: string[], excludeIds = new Set<number>()): Promise<Song | null> {
   for (const query of queries) {
     if (!query.trim()) continue
     let hits
@@ -67,7 +56,9 @@ async function resolvePlayQueue(queries: string[]): Promise<Song | null> {
       console.warn(`[live] ncm search threw for "${query}":`, (err as Error).message)
       continue
     }
+
     for (const hit of hits) {
+      if (excludeIds.has(hit.id)) continue
       let url
       try {
         url = await getSongUrl(hit.id)
@@ -92,21 +83,17 @@ async function resolvePlayQueue(queries: string[]): Promise<Song | null> {
 
 export function startLiveDJ(hub: Hub): () => void {
   let stopped = false
-  // Last-emitted song identity. NCM signs URLs per-call so the same
-  // track gets a different streamUrl every resolve; if we re-emit, the
-  // frontend reloads audio from position 0. Dedup by stable id.
   let lastSongId: number | undefined
-  // When did we last actually swap the song? Cooldown is the safety
-  // floor — the real swap gate below is hub.isCurrentSongEnded().
   let lastSongChangeAt = 0
-  // The DJ comments on whatever's currently playing — track its title +
-  // artist so the directive can name it specifically.
   let currentSong: { title: string; artist: string } | null = null
   let turnInFlight = false
-  const timers = new Set<ReturnType<typeof setTimeout>>()
-  // The setTimeout that will fire the next generateTurn. Kept named so
-  // the song_ended listener can cancel + reschedule it.
+  let runImmediatelyAfterTurn = false
+  let skipIntroInFlight = false
+  let fastSkipInFlight = false
+  let fastSkipCursor = 0
   let nextTurnTimer: ReturnType<typeof setTimeout> | null = null
+  const timers = new Set<ReturnType<typeof setTimeout>>()
+
   const later = (ms: number, fn: () => void) => {
     const t = setTimeout(() => {
       timers.delete(t)
@@ -114,6 +101,7 @@ export function startLiveDJ(hub: Hub): () => void {
     }, ms)
     timers.add(t)
   }
+
   const scheduleNextTurn = (delayMs: number) => {
     if (nextTurnTimer) clearTimeout(nextTurnTimer)
     nextTurnTimer = setTimeout(() => {
@@ -122,12 +110,17 @@ export function startLiveDJ(hub: Hub): () => void {
     }, delayMs)
   }
 
-  // When the client says "current song finished", run the next turn
-  // immediately (instead of waiting out the rest of PAUSE_BETWEEN_MS).
-  // Skips if a turn is already in flight to avoid stomping.
   const unsubscribeSongEnded = hub.onSongEnded(() => {
-    if (turnInFlight) return
-    console.log('[live] client signaled song_ended — triggering next turn now')
+    if (hub.getHandoffReason() === 'skip') {
+      void fastSkipNow()
+      return
+    }
+    if (turnInFlight) {
+      runImmediatelyAfterTurn = true
+      console.log('[live] handoff requested while turn is in flight; queued next turn')
+      return
+    }
+    console.log('[live] client requested song handoff; triggering next turn now')
     scheduleNextTurn(0)
   })
 
@@ -138,27 +131,29 @@ export function startLiveDJ(hub: Hub): () => void {
     turnInFlight = true
     const turnStart = Date.now()
 
-    // Weather is a hardcoded placeholder until OpenWeather lands; even a
-    // wrong-but-present weather string nudges the model away from generic
-    // "feel-good Saturday night" output toward something mood-aware.
     const ctx = buildContext({
       environment: {
         now: new Date(),
-        weather: 'overcast, cool — placeholder',
+        weather: 'overcast, cool; placeholder',
       },
     })
-    // The real swap gate is "did the client say the song ended?". If
-    // not, we can't swap, so don't waste the model's tokens on an intro;
-    // ask for mid-song commentary instead.
+
     const songEnded = hub.isCurrentSongEnded()
+    const handoffReason = hub.getHandoffReason()
     const isFirstSong = lastSongChangeAt === 0
     const mode: 'intro' | 'mid-song' = songEnded || isFirstSong ? 'intro' : 'mid-song'
     const directive = buildDjDirective(currentSong ? { nowPlaying: currentSong, mode } : { mode })
+    const userInput =
+      handoffReason === 'skip'
+        ? 'The listener just skipped the current song. Pick a different new track now; do not keep commenting on the skipped track.'
+        : undefined
 
     let reply: DjReply | null = null
     try {
       const result = await runClaude(directive, {
-        systemPrompt: ctx.systemPrompt,
+        systemPrompt: userInput
+          ? `${ctx.systemPrompt}\n\n---\n\n# User input\n\n${userInput}`
+          : ctx.systemPrompt,
         timeoutMs: CLAUDE_TIMEOUT_MS,
       })
       if (!result.ok) {
@@ -179,62 +174,174 @@ export function startLiveDJ(hub: Hub): () => void {
 
     if (stopped) return
     if (!reply) {
-      // Skip this turn but keep the loop alive
       turnInFlight = false
       scheduleNextTurn(MIN_TURN_MS)
       return
     }
 
-    // Resolve the next song AND synthesize the DJ voice in parallel —
-    // both are independent and either can fail without blocking the other.
+    const forceNewSong = handoffReason === 'skip' || mode === 'intro'
+    const playQueries =
+      forceNewSong && reply.play.length === 0
+        ? ['Jay Chou Qing Tian', 'Eason Chan Ten Years', 'Bread If']
+        : reply.play
+
     const [nextSong, voice] = await Promise.all([
-      reply.play.length > 0 ? resolvePlayQueue(reply.play) : Promise.resolve(null),
+      playQueries.length > 0
+        ? resolvePlayQueue(playQueries, lastSongId !== undefined ? new Set([lastSongId]) : new Set())
+        : Promise.resolve(null),
       synthesizeSafely(reply.say),
     ])
 
-    if (reply.play.length > 0) {
+    if (playQueries.length > 0) {
       if (nextSong) {
-        console.log(`[live] resolved -> ${nextSong.title} — ${nextSong.artist}`)
+        console.log(`[live] resolved -> ${nextSong.title} - ${nextSong.artist}`)
       } else {
-        console.warn(`[live] could not resolve any of: ${JSON.stringify(reply.play)}`)
+        console.warn(`[live] could not resolve any of: ${JSON.stringify(playQueries)}`)
       }
     }
     if (voice) {
       console.log(`[live] tts ${voice.cached ? 'cached' : 'fresh'} ${voice.bytes}B -> ${voice.url}`)
     }
 
-    speakLine(reply, voice?.url, () => {
-      if (nextSong) {
-        const sameSong = nextSong.id === lastSongId
-        const sinceLastSwap = Date.now() - lastSongChangeAt
-        const cooldownLeft = MIN_SONG_INTERVAL_MS - sinceLastSwap
-        const songEndedNow = hub.isCurrentSongEnded()
-        const isFirstSong = lastSongChangeAt === 0
-        if (sameSong) {
-          console.log(`[live] same song (${nextSong.id}) — skipping song event to avoid restart`)
-        } else if (!songEndedNow && !isFirstSong) {
-          console.log(
-            `[live] song still playing — keep "${currentSong?.title}", ignoring "${nextSong.title}" until client signals song_ended`,
-          )
-        } else if (cooldownLeft > 0 && !isFirstSong) {
-          console.log(
-            `[live] safety cooldown ${Math.round(cooldownLeft / 1000)}s — holding "${nextSong.title}"`,
-          )
-        } else {
-          hub.emit({ type: 'song', song: nextSong })
-          lastSongId = nextSong.id
-          lastSongChangeAt = Date.now()
-          currentSong = { title: nextSong.title, artist: nextSong.artist }
-        }
-      }
+    const startedAtIntro = tryStartNextSong(nextSong, 'intro')
+
+    speakLine(reply, voice?.url, voice?.wordTimings, () => {
+      if (!startedAtIntro) tryStartNextSong(nextSong, 'post-speech')
       turnInFlight = false
+      if (runImmediatelyAfterTurn && !startedAtIntro) {
+        runImmediatelyAfterTurn = false
+        scheduleNextTurn(0)
+        return
+      }
+      runImmediatelyAfterTurn = false
       const elapsed = Date.now() - turnStart
       const wait = Math.max(PAUSE_BETWEEN_MS, MIN_TURN_MS - elapsed)
       scheduleNextTurn(wait)
     })
   }
 
-  function speakLine(reply: DjReply, audioUrl: string | undefined, onDone: () => void) {
+  async function fastSkipNow() {
+    if (fastSkipInFlight) return
+    fastSkipInFlight = true
+    if (nextTurnTimer) {
+      clearTimeout(nextTurnTimer)
+      nextTurnTimer = null
+    }
+
+    const excludeIds = lastSongId !== undefined ? new Set([lastSongId]) : new Set<number>()
+    const rotatedQueries = [
+      ...FAST_SKIP_QUERIES.slice(fastSkipCursor),
+      ...FAST_SKIP_QUERIES.slice(0, fastSkipCursor),
+    ]
+    fastSkipCursor = (fastSkipCursor + 1) % Math.max(1, FAST_SKIP_QUERIES.length)
+
+    console.log('[live] fast skip: resolving next song without DJ turn')
+    const nextSong = await resolvePlayQueue(rotatedQueries, excludeIds)
+    fastSkipInFlight = false
+
+    if (stopped) return
+    if (nextSong && tryStartNextSong(nextSong, 'skip')) {
+      runImmediatelyAfterTurn = false
+      void speakSkipIntro(nextSong)
+      return
+    }
+
+    console.warn('[live] fast skip could not resolve a quick song; falling back to DJ turn')
+    if (turnInFlight) {
+      runImmediatelyAfterTurn = true
+    } else {
+      scheduleNextTurn(0)
+    }
+  }
+
+  async function speakSkipIntro(song: Song) {
+    if (skipIntroInFlight || turnInFlight || stopped) return
+    skipIntroInFlight = true
+    turnInFlight = true
+
+    const ctx = buildContext({
+      environment: {
+        now: new Date(),
+        weather: 'overcast, cool; placeholder',
+      },
+      userInput: `The listener skipped into "${song.title}" by ${song.artist}. Say a short DJ intro for this exact track. Do not choose another song; play must be [].`,
+      historyLimit: 4,
+    })
+    const directive = buildDjDirective({
+      nowPlaying: { title: song.title, artist: song.artist },
+      mode: 'mid-song',
+    })
+
+    let reply: DjReply | null = null
+    try {
+      const result = await runClaude(directive, {
+        systemPrompt: ctx.systemPrompt,
+        timeoutMs: CLAUDE_TIMEOUT_MS,
+      })
+      if (result.ok) reply = parseDjReply(result.text ?? '')
+      if (!result.ok || !reply) {
+        console.warn('[live] skip intro failed; using fallback line')
+      }
+    } catch (err) {
+      console.warn('[live] skip intro threw:', (err as Error).message)
+    }
+
+    const line: DjReply =
+      reply ??
+      ({
+        say: `Switching it up now with ${song.title} by ${song.artist}. Let this one reset the room.`,
+        play: [],
+        reason: 'Fallback skip intro.',
+        segue: '',
+      } satisfies DjReply)
+
+    const voice = await synthesizeSafely(line.say)
+    speakLine(line, voice?.url, voice?.wordTimings, () => {
+      skipIntroInFlight = false
+      turnInFlight = false
+      runImmediatelyAfterTurn = false
+      scheduleNextTurn(PAUSE_BETWEEN_MS)
+    })
+  }
+
+  function tryStartNextSong(nextSong: Song | null, phase: 'intro' | 'post-speech' | 'skip') {
+    if (!nextSong) return false
+
+    const sameSong = nextSong.id === lastSongId
+    const sinceLastSwap = Date.now() - lastSongChangeAt
+    const cooldownLeft = MIN_SONG_INTERVAL_MS - sinceLastSwap
+    const songEndedNow = hub.isCurrentSongEnded()
+    const isFirstSong = lastSongChangeAt === 0
+
+    if (sameSong) {
+      console.log(`[live] same song (${nextSong.id}); skipping song event to avoid restart`)
+      return false
+    }
+    if (!songEndedNow && !isFirstSong) {
+      console.log(
+        `[live] song still playing; keep "${currentSong?.title}", ignoring "${nextSong.title}" until client signals song_ended`,
+      )
+      return false
+    }
+    if (!songEndedNow && cooldownLeft > 0 && !isFirstSong) {
+      console.log(`[live] safety cooldown ${Math.round(cooldownLeft / 1000)}s; holding "${nextSong.title}"`)
+      return false
+    }
+
+    hub.emit({ type: 'song', song: nextSong })
+    lastSongId = nextSong.id
+    lastSongChangeAt = Date.now()
+    currentSong = { title: nextSong.title, artist: nextSong.artist }
+    console.log(`[live] started next song during ${phase}: ${nextSong.title} - ${nextSong.artist}`)
+    return true
+  }
+
+  function speakLine(
+    reply: DjReply,
+    audioUrl: string | undefined,
+    wordTimings: WordTiming[] | undefined,
+    onDone: () => void,
+  ) {
     const id = `live-${Date.now()}`
     const ts = Math.floor((Date.now() - hub.sessionStartedAt) / 1000)
     const wordCount = reply.say.split(/\s+/).filter(Boolean).length
@@ -245,18 +352,15 @@ export function startLiveDJ(hub: Hub): () => void {
       message: {
         id,
         ts,
+        type: 'dj_say',
         text: reply.say,
         status: 'speaking',
         highlightWord: 0,
         ...(audioUrl && { audioUrl }),
+        ...(wordTimings && { wordTimings }),
       },
     })
 
-    // When TTS audio is present, the frontend drives word highlighting from
-    // audio.currentTime — skip the per-word event spam. Only schedule the
-    // done/idle transition (still on the 220ms estimate; if audio runs
-    // longer, frontend keeps playing until it ends; if shorter, status
-    // flips slightly before audio finishes — both tolerable for MVP).
     if (!audioUrl) {
       for (let w = 0; w < wordCount; w++) {
         later(w * PER_WORD_MS, () => {
@@ -272,8 +376,6 @@ export function startLiveDJ(hub: Hub): () => void {
     })
   }
 
-  // Kick off the first turn after a short delay so the WS handshake
-  // has time to settle for any client that connected at boot.
   scheduleNextTurn(500)
 
   return () => {

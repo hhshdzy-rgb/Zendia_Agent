@@ -28,7 +28,6 @@ const PAUSE_BETWEEN_MS = 1500
 export function createMockStream(): EventStream {
   const handlers = new Set<(e: ServerEvent) => void>()
   const timers = new Set<ReturnType<typeof setTimeout>>()
-  const intervals = new Set<ReturnType<typeof setInterval>>()
 
   const emit = (e: ServerEvent) => {
     handlers.forEach((h) => h(e))
@@ -46,33 +45,27 @@ export function createMockStream(): EventStream {
     title: 'Monday Night Exhale',
     artist: 'SoundHelix',
     album: 'Demo',
-    // SoundHelix CC0 demo track — replaceable when real backend lands
     streamUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-    durationSec: 0, // filled in by audio element on load
+    durationSec: 0,
     positionSec: 0,
   }
 
-  // Boot sequence
   emit({ type: 'hello', sessionStartedAt })
   emit({ type: 'song', song })
 
-  // Seed timeline with a few "history" messages so the screen isn't empty
   SCRIPT_LINES.slice(0, 3).forEach((text, i) => {
     emit({
       type: 'message_new',
       message: {
         id: `seed-${i}`,
         ts: Math.max(0, i * 4),
+        type: 'dj_say',
         text,
         status: 'done',
       },
     })
   })
 
-  // Position is now driven by the <audio> element's timeupdate event,
-  // so the mock no longer emits song_progress.
-
-  // Looping speaking-message generator
   let cycle = 0
   const playOne = () => {
     const text = SCRIPT_LINES[cycle % SCRIPT_LINES.length]
@@ -83,7 +76,7 @@ export function createMockStream(): EventStream {
     emit({ type: 'tts_state', state: 'speaking' })
     emit({
       type: 'message_new',
-      message: { id, ts, text, status: 'speaking', highlightWord: 0 },
+      message: { id, ts, type: 'dj_say', text, status: 'speaking', highlightWord: 0 },
     })
 
     for (let w = 0; w < wordCount; w++) {
@@ -110,14 +103,12 @@ export function createMockStream(): EventStream {
       }
     },
     send: () => {
-      // Mock has no server to talk to — drop client events on the floor.
+      // Mock has no server to talk to; drop client events on the floor.
     },
     close: () => {
       handlers.clear()
       timers.forEach((t) => clearTimeout(t))
       timers.clear()
-      intervals.forEach((i) => clearInterval(i))
-      intervals.clear()
     },
   }
 }
@@ -140,7 +131,7 @@ export function createWebSocketStream(url: string): EventStream {
         const data = JSON.parse(ev.data) as ServerEvent
         handlers.forEach((h) => h(data))
       } catch {
-        // malformed frame — ignore
+        // Malformed frame: ignore.
       }
     }
     ws.onclose = () => {
@@ -151,10 +142,8 @@ export function createWebSocketStream(url: string): EventStream {
     ws.onerror = () => ws?.close()
   }
 
-  // Defer the actual connect() so a synchronous mount→cleanup pair
-  // (React StrictMode in dev) cancels the timer before any socket is
-  // created, instead of opening then immediately closing one (which
-  // logs "WebSocket closed before established" in the proxy).
+  // Defer the actual connect() so a synchronous mount/cleanup pair
+  // in React StrictMode can cancel before any socket is created.
   let initialTimer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
     initialTimer = null
     connect()
@@ -171,9 +160,6 @@ export function createWebSocketStream(url: string): EventStream {
       if (ws?.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(event))
       }
-      // Drop frames that arrive before the socket is open. The events
-      // we care about (song_ended) are observed events anyway, not
-      // commands — losing one is fine.
     },
     close: () => {
       closed = true

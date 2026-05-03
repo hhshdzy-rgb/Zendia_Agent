@@ -3,13 +3,8 @@ import { messagesRepo } from './db.js'
 import type { ClientEvent, Message, ServerEvent, Song } from './types.js'
 
 // Single shared broadcaster. State is the union of the most recent
-// "snapshot-worthy" events (song, speaking, recent messages); when a new
-// client connects, we replay this snapshot before forwarding live events.
-//
-// Messages are written to SQLite for archival, but the in-memory window
-// starts EMPTY on each server boot — radio metaphor: tune in, hear what's
-// happening now, not a recap of past sessions. The persisted db is still
-// there for a future "history" view to read directly.
+// snapshot-worthy events: song, speaking state, and recent messages.
+// New clients receive the snapshot before live events.
 
 const HISTORY_LIMIT = 20
 
@@ -19,15 +14,18 @@ export class Hub {
   private speaking = false
   private messages: Message[] = []
   private clients = new Set<WebSocket>()
-  // Set true when any client telegrams "the song you sent us has finished
-  // playing". Reset to false on the next song event. Lets the live loop
-  // wait for the actual song to end before swapping, instead of relying
-  // on a time-based cooldown guess.
+  // True when a client reports that the current song should hand off, either
+  // because it ended naturally or because the user skipped it.
   private currentSongEnded = false
+  private handoffReason: 'ended' | 'skip' | null = null
   private songEndedListeners = new Set<() => void>()
 
   isCurrentSongEnded(): boolean {
     return this.currentSongEnded
+  }
+
+  getHandoffReason(): 'ended' | 'skip' | null {
+    return this.handoffReason
   }
 
   onSongEnded(fn: () => void): () => void {
@@ -40,11 +38,12 @@ export class Hub {
   handleClientEvent(event: ClientEvent): void {
     switch (event.type) {
       case 'song_ended':
-        // Match against current song id when the client provides one — guards
-        // against a stale "ended" for a song the server already swapped past.
+      case 'skip_song':
+        // Match against current song id when the client provides one; this
+        // guards against stale events after the server has already swapped.
         if (event.id !== undefined && event.id !== this.song?.id) return
-        if (this.currentSongEnded) return
         this.currentSongEnded = true
+        this.handoffReason = event.type === 'skip_song' ? 'skip' : 'ended'
         this.songEndedListeners.forEach((fn) => fn())
         return
       case 'ping':
@@ -93,6 +92,7 @@ export class Hub {
       case 'song':
         this.song = event.song
         this.currentSongEnded = false
+        this.handoffReason = null
         return
       case 'song_progress':
         if (this.song) this.song = { ...this.song, positionSec: event.positionSec }

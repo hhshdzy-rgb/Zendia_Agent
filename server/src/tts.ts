@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { encode } from '@msgpack/msgpack'
+import type { WordTiming } from './types.js'
 
 // TTS pipeline — Fish Audio + on-disk cache.
 // Same text + voice always hits the cache, so repeats are free and fast.
@@ -46,6 +47,7 @@ export type SynthResult = {
   bytes: number
   cached: boolean
   durationMs: number
+  wordTimings?: WordTiming[]
 }
 
 export async function synthesize(text: string): Promise<SynthResult | null> {

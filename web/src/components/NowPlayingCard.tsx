@@ -8,15 +8,14 @@ type Props = {
 }
 
 export default function NowPlayingCard({ song, paused, onTogglePlay }: Props) {
-  const pct = song.durationSec > 0
-    ? Math.min(100, (song.positionSec / song.durationSec) * 100)
-    : 0
+  const pct =
+    song.durationSec > 0 ? Math.min(100, (song.positionSec / song.durationSec) * 100) : 0
   return (
     <div className="now-playing">
       <div className="now-playing-meta">
         <h2 className="np-title">{song.title}</h2>
         <div className="np-sub">
-          {song.album} <span className="np-sep">—</span> {song.artist}
+          {song.album} <span className="np-sep">-</span> {song.artist}
         </div>
       </div>
       <div className="np-controls">

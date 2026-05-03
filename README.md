@@ -1,50 +1,61 @@
 # Zendia
 
-个人 AI 电台 — 读懂听歌习惯 → 规划声音 → 像 DJ 那样播报。
+Personal AI radio: understands listening habits, plans voice segments, and speaks
+between songs like a lightweight DJ.
 
-## 架构
+## Architecture
 
-四层结构(详见施工图):
+Zendia is split into two apps:
 
-1. **外部上下文** — 用户语料 (`taste.md` / `routines.md` / ...) + Claude Code (子进程) + NeteaseCloudMusicApi + Fish/Feishu/Weather/UPnP
-2. **本地大脑** (Node.js) — `router.js` / `context.js` / `claude.js` / `scheduler.js` / `tts.js` / `state.db`
-3. **运行时聚合** — 6 片 fragment 拼成 prompt → 模型输出 `{say, play[], reason, segue}`
-4. **交互表层** — PWA at `localhost:8910`,Player / Profile / Settings 三视图
+- `server/`: Node.js control plane, Express API, WebSocket stream, SQLite state,
+  Claude subprocess adapter, NCM music lookup, and Fish Audio TTS cache.
+- `web/`: Vite + React PWA, mobile-first player UI, live message timeline,
+  music playback, TTS playback, and waveform visualizers.
 
-## 仓库结构
+Runtime flow:
 
+```text
+context fragments -> Claude DJ contract -> { say, play[], reason, segue }
+  -> persist message
+  -> synthesize DJ voice
+  -> resolve music URL
+  -> stream message/song events to PWA over WebSocket
 ```
-Zendia/
-├── web/        # PWA 前端 (Vite + React + TS)
-└── server/     # Node.js 中枢 (express + ws)
-```
 
-## 开发
+## Development
 
-需要两个终端,分别起前后端:
+Run backend and frontend in two terminals:
 
 ```bash
-# 终端 A — 后端 (默认 :8910,可用 PORT 覆盖)
 cd server
 npm install
 npm run dev
+```
 
-# 终端 B — 前端 (Vite :5173,/api 与 /stream 自动 proxy 到 :8910)
+```bash
 cd web
 npm install
 npm run dev
 ```
 
-如果 8910 撞了别的项目,服务端 `PORT=xxxx npm run dev`,前端 `ZENDIA_SERVER_PORT=xxxx npm run dev`,保持两边一致。
+Defaults:
 
-## NCM cookie(解锁 VIP 曲目)
+- Server: `http://localhost:8910`
+- Web: `http://localhost:5173`
+- WebSocket: `/stream`
+- API snapshot: `/api/now`
 
-NCM 免费目录大量主流华语流行 VIP 锁。如果你有黑胶 / 会员账号,登录后传 cookie 给后端解锁:
+If port `8910` is busy, start the server with `PORT=xxxx npm run dev` and keep
+the Vite proxy setting aligned.
 
-1. `cp server/.env.example server/.env`
-2. 浏览器去 https://music.163.com/ 登录
-3. F12 → Application → Cookies → https://music.163.com → 找 `MUSIC_U`,复制值
-4. 编辑 `server/.env`:`NCM_COOKIE=MUSIC_U=<刚刚复制的值>`
-5. 重启后端 `npm run dev`,跑 `npm run ncm:smoke -- "十年 陈奕迅"` 应该能拿到 url 了
+## Environment
 
-`.env` 已经在 .gitignore,不会进 commit。**MUSIC_U 是你账号的 auth token,不要分享 / 截图 / 贴给别人。**
+Copy `server/.env.example` to `server/.env` and fill in local secrets:
+
+- `NCM_COOKIE`: optional but recommended for NetEase Cloud Music tracks that
+  require login.
+- `FISH_API_KEY`: required for DJ voice synthesis.
+- `FISH_VOICE_ID`: optional custom Fish Audio voice reference.
+- `FISH_MODEL`: optional Fish Audio model id.
+
+Do not commit `.env`. The file is gitignored because it contains account tokens.

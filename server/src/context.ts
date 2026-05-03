@@ -4,18 +4,9 @@ import { fileURLToPath } from 'node:url'
 import { messagesRepo } from './db.js'
 import type { Message } from './types.js'
 
-// CONTEXT.JS — assembles the 6-fragment prompt the architecture施工图
-// describes:
-//   1. systemPersona     — prompts/dj-persona.md
-//   2. userCorpus        — user/*.md + user/*.json
-//   3. environment       — caller-supplied: now, weather, calendar
-//   4. retrievedMemory   — recent messages from state.db (plays come later)
-//   5. userInput         — caller-supplied chat / tool result (optional)
-//   6. trace             — caller-supplied scheduler/webhook trail (optional)
-//
-// Output is a single Markdown blob suitable as the system prompt for
-// the Claude subprocess. Each section is delimited so a debugger can
-// see what the model actually saw.
+// Builds the six context fragments used by the local DJ brain:
+// 1. persona, 2. user corpus, 3. environment, 4. recent memory,
+// 5. user input, 6. execution trace.
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const SERVER_ROOT = path.resolve(__dirname, '..')
@@ -91,21 +82,17 @@ function formatEnvironment(env: Environment | undefined): string {
   return lines.join('\n')
 }
 
-// Per-message char cap. The recent timeline is for anti-repetition + tone
-// reference, not full recall, so we don't need the whole text. This also
-// keeps the assembled systemPrompt under Windows' ~8KB CLI arg limit
-// when long-form DJ segments accumulate.
 const MAX_MEM_CHARS_PER_MSG = 200
 
 function formatRecentMessages(messages: Message[]): string {
   if (messages.length === 0) return '_(none)_'
   return messages
     .map((m) => {
-      const t =
+      const text =
         m.text.length > MAX_MEM_CHARS_PER_MSG
-          ? `${m.text.slice(0, MAX_MEM_CHARS_PER_MSG)}…`
+          ? `${m.text.slice(0, MAX_MEM_CHARS_PER_MSG)}...`
           : m.text
-      return `- [${m.status}] "${t}"`
+      return `- [${m.status}] "${text}"`
     })
     .join('\n')
 }
@@ -114,8 +101,6 @@ export function buildContext(input: ContextInput = {}): AssembledContext {
   const persona = readIfExists(PERSONA_PATH)
   const userCorpus = readUserCorpus()
   const environment = formatEnvironment(input.environment)
-  // 5 is enough to anchor "don't repeat the last few" without bloating
-  // the prompt. Caller can override via historyLimit.
   const recent = messagesRepo.recent(input.historyLimit ?? 5)
   const retrievedMemory = formatRecentMessages(recent)
   const userInput = input.userInput?.trim() ?? ''
@@ -137,8 +122,8 @@ export function buildContext(input: ContextInput = {}): AssembledContext {
 
   const memoryHeading =
     recent.length > 0
-      ? `# Recent — your last ${recent.length} turn(s). Vary your opener, phrasing, energy, and song picks; do not echo any of these.`
-      : `# Recent — no prior turns yet.`
+      ? `# Recent: your last ${recent.length} turn(s). Vary opener, phrasing, energy, and song picks; do not echo these.`
+      : '# Recent: no prior turns yet.'
   sections.push(`${memoryHeading}\n\n${retrievedMemory}`)
 
   if (userInput) sections.push(`# User input\n\n${userInput}`)

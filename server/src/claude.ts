@@ -1,9 +1,14 @@
 import { spawn } from 'node:child_process'
 
 // Thin wrapper around the Claude Code CLI in non-interactive print mode:
-//   $ echo "<prompt>" | claude -p --output-format json
-// Prompt is fed via stdin so we don't have to shell-escape it. On Windows
-// claude is a .cmd shim, so spawn needs shell:true to resolve it.
+//   $ echo "<full prompt incl. system section>" | claude -p --output-format json
+// EVERYTHING goes through stdin. We deliberately do NOT pass --system-prompt
+// as a CLI arg because Windows caps single-arg length at ~8 KB, and once
+// userCorpus picks up a real NCM playlist it blows past that. stdin has no
+// length limit. We just merge systemPrompt + user prompt with a clear
+// delimiter so the model still sees the structure.
+//
+// On Windows claude is a .cmd shim, so spawn needs shell:true to resolve it.
 
 export type ClaudeResult = {
   ok: boolean
@@ -24,7 +29,12 @@ export async function runClaude(prompt: string, opts: ClaudeOptions = {}): Promi
   const start = Date.now()
   const isWindows = process.platform === 'win32'
   const args = ['-p', '--output-format', 'json']
-  if (opts.systemPrompt) args.push('--system-prompt', opts.systemPrompt)
+
+  // Merge systemPrompt into the stdin payload instead of passing as a CLI
+  // arg (see file header). Clear delimiter so the model sees the boundary.
+  const fullPrompt = opts.systemPrompt
+    ? `${opts.systemPrompt}\n\n=== END SYSTEM ===\n\n${prompt}`
+    : prompt
 
   // Unset CLAUDECODE so the wrapper still works when itself invoked from
   // inside another Claude Code session (e.g. our smoke test). In normal
@@ -101,7 +111,7 @@ export async function runClaude(prompt: string, opts: ClaudeOptions = {}): Promi
       }
     })
 
-    proc.stdin.write(prompt)
+    proc.stdin.write(fullPrompt)
     proc.stdin.end()
   })
 }

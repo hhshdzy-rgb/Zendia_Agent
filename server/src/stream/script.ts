@@ -44,6 +44,7 @@ export function startScriptedDJ(hub: Hub): () => void {
       message: {
         id: `seed-${i}`,
         ts: Math.max(0, i * 4),
+        type: 'dj_say',
         text,
         status: 'done',
       },
@@ -60,7 +61,7 @@ export function startScriptedDJ(hub: Hub): () => void {
     hub.emit({ type: 'tts_state', state: 'speaking' })
     hub.emit({
       type: 'message_new',
-      message: { id, ts, text, status: 'speaking', highlightWord: 0 },
+      message: { id, ts, type: 'dj_say', text, status: 'speaking', highlightWord: 0 },
     })
 
     for (let w = 0; w < wordCount; w++) {

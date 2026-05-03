@@ -11,6 +11,7 @@
     "context:smoke": "tsx src/scripts/contextSmoke.ts",
     "pipeline:smoke": "tsx src/scripts/pipelineSmoke.ts",
     "ncm:smoke": "tsx src/scripts/ncmSmoke.ts",
+    "ncm:likes": "tsx src/scripts/syncNcmLikes.ts",
     "fish:smoke": "tsx src/scripts/fishSmoke.ts"
   },
   "dependencies": {

@@ -5,6 +5,7 @@ type Props = {
   positionSec: number
   paused: boolean
   onTogglePlay: () => void
+  onSkip: () => void
   analyser: AnalyserNode | null
   bars?: number
 }
@@ -13,6 +14,7 @@ export default function BottomMiniPlayer({
   positionSec,
   paused,
   onTogglePlay,
+  onSkip,
   analyser,
   bars = 40,
 }: Props) {
@@ -55,6 +57,15 @@ export default function BottomMiniPlayer({
       >
         {paused ? <PlayIcon /> : <PauseIcon />}
       </button>
+      <button
+        type="button"
+        className="mini-skip"
+        onClick={onSkip}
+        aria-label="Skip song"
+        title="Skip song"
+      >
+        <SkipIcon />
+      </button>
     </div>
   )
 }
@@ -72,6 +83,15 @@ function PlayIcon() {
   return (
     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
       <path d="M7 4.5v15l13-7.5z" />
+    </svg>
+  )
+}
+
+function SkipIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">
+      <path d="M5 5.4v13.2L15.2 12z" />
+      <rect x="17" y="5" width="2.2" height="14" rx="0.8" />
     </svg>
   )
 }

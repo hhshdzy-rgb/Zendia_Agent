@@ -11,8 +11,10 @@ export default function Player() {
   const { state, send } = usePlayerStream()
   const audioRef = useRef<HTMLAudioElement>(null)
   const ttsAudioRef = useRef<HTMLAudioElement>(null)
-  const audioCtxRef = useRef<AudioContext | null>(null)
-  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null)
+  const musicAudioCtxRef = useRef<AudioContext | null>(null)
+  const ttsAudioCtxRef = useRef<AudioContext | null>(null)
+  const [musicAnalyser, setMusicAnalyser] = useState<AnalyserNode | null>(null)
+  const [ttsAnalyser, setTtsAnalyser] = useState<AnalyserNode | null>(null)
   const [paused, setPaused] = useState(true)
   const [position, setPosition] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -26,6 +28,7 @@ export default function Player() {
     id: string
     audioUrl: string
     text: string
+    wordTimings?: typeof state.messages[number]['wordTimings']
   } | null>(null)
 
   const speakingMsg = useMemo(
@@ -33,17 +36,65 @@ export default function Player() {
     [state.messages],
   )
 
+  function ensureMusicAudioGraph() {
+    const audio = audioRef.current
+    if (!audio || musicAudioCtxRef.current) return
+    try {
+      const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      const ctx = new Ctor()
+      const source = ctx.createMediaElementSource(audio)
+      const node = ctx.createAnalyser()
+      node.fftSize = 256
+      node.smoothingTimeConstant = 0.6
+      source.connect(node)
+      node.connect(ctx.destination)
+      musicAudioCtxRef.current = ctx
+      setMusicAnalyser(node)
+    } catch (err) {
+      console.warn('Music AudioContext setup failed', err)
+    }
+  }
+
+  function ensureTtsAudioGraph() {
+    const audio = ttsAudioRef.current
+    if (!audio || ttsAudioCtxRef.current) return
+    try {
+      const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      const ctx = new Ctor()
+      const source = ctx.createMediaElementSource(audio)
+      const node = ctx.createAnalyser()
+      node.fftSize = 256
+      node.smoothingTimeConstant = 0.72
+      source.connect(node)
+      node.connect(ctx.destination)
+      ttsAudioCtxRef.current = ctx
+      setTtsAnalyser(node)
+    } catch (err) {
+      console.warn('TTS AudioContext setup failed', err)
+    }
+  }
+
   // When a new server-side speaking message arrives, switch over.
   // Otherwise let the current playback finish naturally.
   useEffect(() => {
     if (!speakingMsg?.audioUrl) return
     if (playingTts?.id === speakingMsg.id) return
+    // This local copy intentionally outlives the server's speaking status so
+    // the TTS audio can finish naturally on the client.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPlayingTts({
       id: speakingMsg.id,
       audioUrl: speakingMsg.audioUrl,
       text: speakingMsg.text,
+      wordTimings: speakingMsg.wordTimings,
     })
-  }, [speakingMsg?.id, speakingMsg?.audioUrl, speakingMsg?.text, playingTts?.id])
+  }, [
+    speakingMsg?.id,
+    speakingMsg?.audioUrl,
+    speakingMsg?.text,
+    speakingMsg?.wordTimings,
+    playingTts?.id,
+  ])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -66,7 +117,8 @@ export default function Player() {
 
   useEffect(() => {
     return () => {
-      audioCtxRef.current?.close().catch(() => {})
+      musicAudioCtxRef.current?.close().catch(() => {})
+      ttsAudioCtxRef.current?.close().catch(() => {})
     }
   }, [])
 
@@ -76,7 +128,7 @@ export default function Player() {
   // play() without prior user gesture, and we don't want to fight that.
   useEffect(() => {
     const audio = audioRef.current
-    if (!audio || !audioCtxRef.current || !state.song.streamUrl) return
+    if (!audio || !musicAudioCtxRef.current || !state.song.streamUrl) return
     audio.play().catch((err) => console.warn('audio.play() after src swap rejected', err))
   }, [state.song.streamUrl])
 
@@ -99,16 +151,18 @@ export default function Player() {
     const tts = ttsAudioRef.current
     if (!tts || !playingTts) return
 
-    if (tts.src !== playingTts.audioUrl) {
-      tts.src = playingTts.audioUrl
+    const nextSrc = new URL(playingTts.audioUrl, window.location.href).href
+    if (tts.src !== nextSrc) {
+      tts.src = nextSrc
+      tts.currentTime = 0
+      tts.load()
     }
     const wordCount = playingTts.text.split(/\s+/).filter(Boolean).length
     const { id: messageId } = playingTts
     const onTime = () => {
       const dur = tts.duration
       if (!isFinite(dur) || dur <= 0) return
-      const ratio = Math.min(1, tts.currentTime / dur)
-      const wordIdx = Math.min(wordCount - 1, Math.floor(ratio * wordCount))
+      const wordIdx = getWordIndex(tts.currentTime, dur, wordCount, playingTts.wordTimings)
       setTtsHighlight({ id: messageId, wordIdx })
     }
     const onEnded = () => {
@@ -134,6 +188,11 @@ export default function Player() {
     if (paused) {
       tts.pause()
     } else if (playingTts) {
+      // TTS turns can arrive after the user's initial play gesture. Ensure the
+      // analyser exists before playback so the header waveform has a live source.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      ensureTtsAudioGraph()
+      ttsAudioCtxRef.current?.resume().catch(() => {})
       // Logs both the autoplay-policy rejection (expected on first turn
       // before user gesture) and any real failure (404, decoding error).
       tts.play().catch((err) => console.warn('tts.play() rejected', err))
@@ -149,35 +208,27 @@ export default function Player() {
     audio.volume = playingTts ? 0.25 : 1.0
   }, [playingTts])
 
-  const ensureAudioGraph = () => {
-    const audio = audioRef.current
-    if (!audio || audioCtxRef.current) return
-    try {
-      const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-      const ctx = new Ctor()
-      const source = ctx.createMediaElementSource(audio)
-      const node = ctx.createAnalyser()
-      node.fftSize = 256
-      node.smoothingTimeConstant = 0.6
-      source.connect(node)
-      node.connect(ctx.destination)
-      audioCtxRef.current = ctx
-      setAnalyser(node)
-    } catch (err) {
-      console.warn('AudioContext setup failed', err)
-    }
-  }
-
   const togglePlay = () => {
     const audio = audioRef.current
     if (!audio) return
-    ensureAudioGraph()
-    audioCtxRef.current?.resume().catch(() => {})
+    ensureMusicAudioGraph()
+    ensureTtsAudioGraph()
+    musicAudioCtxRef.current?.resume().catch(() => {})
+    ttsAudioCtxRef.current?.resume().catch(() => {})
     if (audio.paused) {
       audio.play().catch((err) => console.warn('audio.play() rejected', err))
     } else {
       audio.pause()
     }
+  }
+
+  const skipSong = () => {
+    const audio = audioRef.current
+    if (audio) {
+      audio.pause()
+      audio.currentTime = 0
+    }
+    send({ type: 'skip_song', ...(state.song.id !== undefined && { id: state.song.id }) })
   }
 
   const songWithLiveTime = {
@@ -196,7 +247,7 @@ export default function Player() {
       />
       <audio ref={ttsAudioRef} preload="auto" />
       <Header speaking={state.speaking} />
-      <DJWaveform speaking={state.speaking} analyser={analyser} />
+      <DJWaveform speaking={state.speaking || Boolean(playingTts)} analyser={ttsAnalyser} />
       <NowPlayingCard
         song={songWithLiveTime}
         paused={paused}
@@ -207,8 +258,27 @@ export default function Player() {
         positionSec={position}
         paused={paused}
         onTogglePlay={togglePlay}
-        analyser={analyser}
+        onSkip={skipSong}
+        analyser={musicAnalyser}
       />
     </div>
   )
+}
+
+function getWordIndex(
+  currentTime: number,
+  duration: number,
+  wordCount: number,
+  wordTimings: { start: number; end: number }[] | undefined,
+) {
+  if (wordCount <= 0) return 0
+  if (wordTimings?.length) {
+    const idx = wordTimings.findIndex((w) => currentTime >= w.start && currentTime < w.end)
+    if (idx >= 0) return Math.min(wordCount - 1, idx)
+    if (currentTime >= wordTimings[wordTimings.length - 1]!.end) {
+      return Math.min(wordCount - 1, wordTimings.length - 1)
+    }
+  }
+  const ratio = Math.min(1, currentTime / duration)
+  return Math.min(wordCount - 1, Math.floor(ratio * wordCount))
 }

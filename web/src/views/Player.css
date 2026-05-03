@@ -352,3 +352,24 @@
 .mini-toggle:active {
   transform: scale(0.92);
 }
+
+.mini-skip {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.mini-skip:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.mini-skip:active {
+  transform: scale(0.92);
+}
