@@ -17,8 +17,44 @@ const CACHE_DIR = path.join(SERVER_ROOT, 'cache', 'tts')
 
 const FISH_API_KEY = process.env.FISH_API_KEY?.trim() || undefined
 const FISH_API_URL = 'https://api.fish.audio/v1/tts'
+// Per-language voice picks. The runtime auto-detects whether `say` is
+// CJK or Latin and routes to the matching voice. FISH_VOICE_ID is the
+// fallback when a language-specific id isn't set.
 const FISH_VOICE_ID = process.env.FISH_VOICE_ID?.trim() || undefined
+const FISH_VOICE_ID_ZH = process.env.FISH_VOICE_ID_ZH?.trim() || undefined
+const FISH_VOICE_ID_EN = process.env.FISH_VOICE_ID_EN?.trim() || undefined
 const FISH_MODEL = process.env.FISH_MODEL?.trim() || 'speech-1.6'
+
+function detectLanguage(text: string): 'zh' | 'en' {
+  // Count CJK characters vs total non-whitespace chars. A pure Chinese
+  // sentence is essentially 100% CJK; a pure English one is 0%. Mixed
+  // (Chinese with quoted English titles, or vice versa) still tilts
+  // strongly toward one. The 30% threshold handles the common case
+  // where a Chinese line drops in an English song title.
+  let cjk = 0
+  let total = 0
+  for (const ch of text) {
+    if (/\s/.test(ch)) continue
+    total++
+    const code = ch.codePointAt(0) ?? 0
+    if (
+      (code >= 0x4e00 && code <= 0x9fff) || // CJK Unified Ideographs
+      (code >= 0x3040 && code <= 0x309f) || // Hiragana
+      (code >= 0x30a0 && code <= 0x30ff) || // Katakana
+      (code >= 0xac00 && code <= 0xd7af) // Hangul Syllables
+    ) {
+      cjk++
+    }
+  }
+  if (total === 0) return 'en'
+  return cjk / total >= 0.3 ? 'zh' : 'en'
+}
+
+function pickVoice(text: string): string {
+  const lang = detectLanguage(text)
+  if (lang === 'zh') return FISH_VOICE_ID_ZH ?? FISH_VOICE_ID ?? ''
+  return FISH_VOICE_ID_EN ?? FISH_VOICE_ID ?? ''
+}
 
 if (!existsSync(CACHE_DIR)) mkdirSync(CACHE_DIR, { recursive: true })
 
@@ -55,7 +91,7 @@ export async function synthesize(text: string): Promise<SynthResult | null> {
   if (!FISH_API_KEY) return null
   if (!text.trim()) return null
 
-  const voice = FISH_VOICE_ID ?? ''
+  const voice = pickVoice(text)
   const hash = hashKey(text, voice, FISH_MODEL)
   const filename = `${hash}.mp3`
   const absPath = path.join(CACHE_DIR, filename)
