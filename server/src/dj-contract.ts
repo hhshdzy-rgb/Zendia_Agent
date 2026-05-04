@@ -42,6 +42,8 @@ export function buildDjDirective(
     mode?: 'intro' | 'mid-song' | 'reply' | 'auto'
     /** Required when mode = 'reply'; the listener's message to address. */
     userMessage?: string
+    /** Recently played tracks the model must NOT pick again. Newest first. */
+    recentlyPlayed?: string[]
   } = {},
 ): string {
   const lines: string[] = ['Generate the next DJ segment.']
@@ -56,6 +58,19 @@ export function buildDjDirective(
     lines.push(
       '',
       'No song is playing yet. This is the first turn of the session, so pick something to start with.',
+    )
+  }
+
+  if (opts.recentlyPlayed && opts.recentlyPlayed.length > 0) {
+    lines.push(
+      '',
+      'RECENTLY PLAYED — DO NOT REPEAT (newest first):',
+      ...opts.recentlyPlayed.map((s) => `  - ${s}`),
+      '',
+      'Hard rules:',
+      '- Do NOT pick any title in the list above.',
+      '- Do NOT pick the same artist back-to-back; leave at least 3 turns between same-artist picks.',
+      '- Reach for deeper cuts, album tracks, B-sides, live versions, collaborations — not the artist\'s 3 most-canonical hits over and over.',
     )
   }
 

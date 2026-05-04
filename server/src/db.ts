@@ -132,6 +132,13 @@ const stmts = {
     ORDER BY created_at DESC
     LIMIT @limit
   `),
+  recentSongs: db.prepare(`
+    SELECT id, text, song_id, created_at
+    FROM messages
+    WHERE type = 'song'
+    ORDER BY created_at DESC
+    LIMIT @limit
+  `),
   count: db.prepare(`SELECT COUNT(*) AS n FROM messages`),
 }
 
@@ -202,6 +209,17 @@ export const messagesRepo = {
   },
   count(): number {
     return (stmts.count.get() as { n: number }).n
+  },
+  // Returns the most recent N songs the DJ has played, newest first.
+  // Used as a "do not repeat" list injected into the prompt every turn.
+  recentSongs(limit: number): Array<{ text: string; songId: number | null; createdAt: number }> {
+    const rows = stmts.recentSongs.all({ limit }) as Array<{
+      id: string
+      text: string
+      song_id: number | null
+      created_at: number
+    }>
+    return rows.map((r) => ({ text: r.text, songId: r.song_id, createdAt: r.created_at }))
   },
 }
 

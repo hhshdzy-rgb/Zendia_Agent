@@ -6,6 +6,7 @@ import { getSongUrl, searchSong } from '../ncm.js'
 import { synthesize } from '../tts.js'
 import type { Song, WordTiming } from '../types.js'
 import { getWeather } from '../weather.js'
+import { messagesRepo } from '../db.js'
 
 // Live DJ runtime:
 // 1. build context + directive
@@ -203,10 +204,12 @@ export function startLiveDJ(hub: Hub): () => void {
         ...(weather ? { weather: weather.text } : {}),
       },
     })
+    const recentlyPlayed = messagesRepo.recentSongs(20).map((s) => s.text)
     const directive = buildDjDirective({
       ...(currentSong ? { nowPlaying: currentSong } : {}),
       mode,
       ...(userMessage ? { userMessage } : {}),
+      ...(recentlyPlayed.length > 0 ? { recentlyPlayed } : {}),
     })
     const userInput = userMessage
       ? `The listener just said: "${userMessage}"`
@@ -409,6 +412,17 @@ export function startLiveDJ(hub: Hub): () => void {
     lastSongId = nextSong.id
     lastSongChangeAt = Date.now()
     currentSong = { title: nextSong.title, artist: nextSong.artist }
+    // Persist the played song as a type='song' row so the prompt can
+    // build a "do not repeat" list across sessions. Direct DB insert,
+    // not via hub.emit — clients don't need this in the timeline UI.
+    messagesRepo.insert({
+      id: `song-${Date.now()}-${nextSong.id ?? Math.random().toString(36).slice(2, 8)}`,
+      ts: Math.floor((Date.now() - hub.sessionStartedAt) / 1000),
+      type: 'song',
+      text: `${nextSong.title} — ${nextSong.artist}`,
+      status: 'done',
+      ...(nextSong.id !== undefined ? { songId: nextSong.id } : {}),
+    })
     const tag = force ? `forced ${phase}` : phase
     console.log(`[live] started next song during ${tag}: ${nextSong.title} - ${nextSong.artist}`)
     return true
