@@ -109,11 +109,6 @@ export function startLiveDJ(hub: Hub): () => void {
   let activeSpeakDoneTimer: ReturnType<typeof setTimeout> | null = null
   let activeSpeakDoneFire: (() => void) | null = null
   let nextTurnTimer: ReturnType<typeof setTimeout> | null = null
-  // True once a DJ turn has actually used weather in its context. After
-  // that, weather is omitted from the prompt — the DJ keeps narrating
-  // normally without re-mentioning it. The UI weather strip stays live
-  // (it has its own broadcast loop in index.ts).
-  let weatherUsedForPrompt = false
   const timers = new Set<ReturnType<typeof setTimeout>>()
 
   const later = (ms: number, fn: () => void) => {
@@ -197,11 +192,11 @@ export function startLiveDJ(hub: Hub): () => void {
         ? 'intro'
         : 'mid-song'
 
-    // Weather only on the very first intro turn after server boot. Skip
-    // intros and reply / mid-song turns never see it.
-    const useWeather = !weatherUsedForPrompt && mode === 'intro' && isFirstSong
-    const weather = useWeather ? await getWeather() : undefined
-    if (weather) weatherUsedForPrompt = true
+    // Weather goes into context every turn so the model can use it as a
+    // silent signal for song selection (per user/mood-rules.md). The
+    // persona governs whether it's spoken aloud — only on the first
+    // intro of the session, otherwise it shapes picks invisibly.
+    const weather = await getWeather()
     const ctx = buildContext({
       environment: {
         now: new Date(),
@@ -336,10 +331,12 @@ export function startLiveDJ(hub: Hub): () => void {
     skipIntroInFlight = true
     turnInFlight = true
 
-    // Skip-intros never inject weather — that slot is reserved for the
-    // very first show-open intro in generateTurn.
+    const weather = await getWeather()
     const ctx = buildContext({
-      environment: { now: new Date() },
+      environment: {
+        now: new Date(),
+        ...(weather ? { weather: weather.text } : {}),
+      },
       userInput: `The listener skipped into "${song.title}" by ${song.artist}. Say a short DJ intro for this exact track. Do not choose another song; play must be [].`,
       historyLimit: 4,
     })
