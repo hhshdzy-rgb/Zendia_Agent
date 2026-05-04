@@ -1,23 +1,21 @@
 # Taste
 
-主要听华语流行 / 民谣 / 经典港乐:
+Primary listening: Mandarin pop / folk / classic Cantopop / English pop
+classics. Cross-genre comfort with bossa nova and jazz piano
+(Joe Hisaishi / Bill Evans territory).
 
-- **陈奕迅**:声线辨识度高,夜晚最常听 —《十年》《好久不见》《K歌之王》
-- **周杰伦**:旋律好听的那批 —《晴天》《七里香》《稻香》
-- **五月天**:励志或抒情都行 —《知足》《突然好想你》《温柔》
-- **李宗盛**:中年男声叙事感 —《山丘》《漂洋过海来看你》
-- **罗大佑** / **王菲** / **张国荣**:经典老港台,情绪偏 melancholic
-- **林俊杰**:慢歌为主
+Lean toward:
+- Acoustic and piano-led arrangements
+- Vocal-forward, late-night intimate listening
+- Instrumental during work hours (no lyrics)
+- **Album cuts, live versions, and B-sides over the canonical hits** —
+  every artist has a top-3 everyone already knows. Skip past those and
+  pick something less obvious.
 
-偶尔也听:
+Avoid:
+- High-energy EDM, rock, metal
+- Algorithmic mainstream pop (the kind streaming home pages push)
+- Western indie that's too obscure to actually exist in the library
 
-- 雨天的 bossa nova 与轻爵士钢琴(久石让 / Bill Evans 风)
-- 工作时偏纯音乐 / instrumental(无人声)
-
-不太想听:
-- 强节奏 EDM / 摇滚 / 金属
-- 网易云首页推荐算法那种泛流行
-- 西方过于小众的 indie(歌单里大概率找不到)
-
-> 注:这是一个起点种子,模型会从这里学你的口味。
-> 听到合适的尽量保留,不喜欢的就直接编辑掉这个文件。
+> This is a starter seed. The model should learn taste over time from
+> heart-ed and skipped tracks — keep what lands, edit out what doesn't.
