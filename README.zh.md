@@ -73,8 +73,7 @@ cp server/.env.example server/.env
 # 编辑 server/.env,填:
 #   NCM_COOKIE=MUSIC_U=...
 #   FISH_API_KEY=...
-#   FISH_VOICE_ID_ZH=...     FISH_MODEL_ZH=...
-#   FISH_VOICE_ID_EN=...     FISH_MODEL_EN=...
+#   FISH_VOICE_ID=...        FISH_MODEL=...
 ```
 
 ### Build + 起服务
@@ -191,12 +190,8 @@ cd server && npm run weather:smoke
 | `WEATHER_PLACE` | 可选 | 天气前缀文案,如 `Beijing`(只入 prompt) |
 | `NCM_COOKIE` | 推荐 | 网易云的 `MUSIC_U` cookie。没 cookie 大量主流华语歌(VIP 锁)放不出 |
 | `FISH_API_KEY` | 必填 | Fish Audio API key,DJ 声音合成需要 |
-| `FISH_VOICE_ID_ZH` | 可选 | 中文 DJ 用的 voice id |
-| `FISH_MODEL_ZH` | 可选 | 中文 voice 对应的模型(如 `s1`) |
-| `FISH_VOICE_ID_EN` | 可选 | 英文 DJ 用的 voice id |
-| `FISH_MODEL_EN` | 可选 | 英文 voice 对应的模型(如 `s2-pro`) |
-| `FISH_VOICE_ID` | 可选 | 全局 fallback voice |
-| `FISH_MODEL` | 可选 | 全局 fallback 模型,默认 `speech-1.6` |
+| `FISH_VOICE_ID` | 可选 | DJ 用的英文 voice id |
+| `FISH_MODEL` | 可选 | voice 对应的模型(如 `s2-pro`),默认 `speech-1.6` |
 
 ### NCM cookie 怎么拿
 
@@ -214,13 +209,11 @@ cd server && npm run weather:smoke
    `https://fish.audio/m/<32位 uuid>/...?version=<模型>`
 3. **modelId** 那段是 voice id,**version** 是模型 id,两个一起填
 
-## DJ 语言策略
+## DJ 语言
 
-- 英文歌 → 英文 DJ + 英文 voice
-- 中文 / 日文 / 韩文 / 纯音乐 / 未知 → 中文 DJ + 中文 voice
-- 你打字 chat → DJ 跟你的语言
-
-(默认偏中文,因为非英文 voice 是中文,日韩文用中文 voice 念会乱)
+DJ 永远说英文,不管你听的歌是哪种语言、不管你 chat 用什么语言。
+中文/日文/韩文歌名会被音译进英文叙述里("Jay Chou's Qing Tian, 2003"),
+TTS voice 不会去念 CJK 字符。
 
 ## 故障排查速查
 

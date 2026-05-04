@@ -111,7 +111,7 @@ export function buildDjDirective(
 
   lines.push(
     '',
-    'Language: ENGLISH only if the song is English. For Chinese / Japanese / Korean / instrumental / unknown — write CHINESE. (In reply mode, match the listener\'s input language: their English → your English, their Chinese → your Chinese.)',
+    'Language: ENGLISH only, regardless of song language or listener input. Transliterate non-English titles inside the prose so the TTS never has to read CJK glyphs.',
     '',
     'Reply with only a single JSON object. Start with { and end with }.',
     'No prose, no markdown fences, and no quotes around the whole reply.',
